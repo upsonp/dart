@@ -1,0 +1,66 @@
+{% load static %}
+{% load bootstrap5 %}
+
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  {# Bootstrap 5 #}
+  <link rel="stylesheet" href="{% static 'bootstrap-5.0.2-dist/css/bootstrap.min.css' %}?version=1.8.0"/>
+  <link rel="shortcut icon" type="image/png" href="{% static '/img/dart.ico' %}"/>
+  <script type="text/javascript" src="{% static 'bootstrap-5.0.2-dist/js/bootstrap.bundle.min.js' %}"></script>
+
+  {% block extra_style %}{% endblock %}
+
+  <title>{% block sitetitle %}DFO At-sea Reporting Template{% endblock %} {% block subtitle %}{% endblock %}</title>
+  {% block header %}{% endblock header %}
+</head>
+<body>
+
+{% block messages %}
+  {% bootstrap_messages %}
+{% endblock %}
+
+<div class="container">
+    <div class="row mt-2">
+    {% block header_buttons %}
+        <span class="col-1"><a class="btn btn-primary" href="/">Home</a></span>
+        <span class="col-2">
+            <a class="btn btn-primary" href="{% url 'core:mission_filter' %}">Missions</a>
+        </span>
+    {% endblock %}
+    </div>
+    <div id="page_title_area" class="row mt-2">
+    {% block title %}{% if page_title %}<span class="h2 col">{{page_title}}</span>{% endif %}{% endblock title %}
+    </div>
+    <div id="page_content_area" class="row mt-2">
+    {% block content %}{% endblock content %}
+    </div>
+</div>
+
+<script type="text/javascript" src="{% static 'js/jquery.min.js' %}"></script>
+
+<script type="text/javascript" src="{% static "js/clickableTableRows.js" %}?version=1.0.0"></script>
+<link href="{% static 'MaterialDesign-Webfont-master/css/materialdesignicons.min.css' %}" rel="stylesheet">
+<script src="{% static 'js/vueFiltersAndMethods.js' %}?version=1.0"></script>
+<script src="{% static 'js/vue.min.js' %}"></script>
+
+<script type="text/javascript" src="{% static 'vue-select/vue-select.js' %}"></script>
+<link rel="stylesheet" href="{% static 'vue-select/vue-select.css' %}">
+
+<script src="{% static 'leaflet/leaflet.js' %}?version=1.8.0"></script>
+<script src="{% static 'js/vue2-leaflet.min.js' %}?version=2.7.1"></script>
+
+<script type="text/javascript" src="{% static 'js/leaflet.rotatedMarker.js' %}"></script>
+<script type="text/javascript" src="{% static 'js/api_service.js' %}?ver=1.0"></script>
+
+<script type="text/javascript" src="{% static 'js/clickableTableRows.js' %}?version=1.0.0"></script>
+
+{% block body_js %}{% endblock %}
+
+</body>
+{% block post_content %}{% endblock post_content %}
+
+</html>

@@ -1,0 +1,27 @@
+Django==3.1.4
+
+# django-filters is used for easily creating filter pages to
+django-filter==2.4.0
+
+# django-bootstrap is a CSS library for displaying content in web browsers.
+django-bootstrap-v5==1.0.11
+
+# used to allow REST api calls
+djangorestframework==3.14.0
+markdown==3.4.1
+
+# factory-boy and Faker are used for unit Testing
+Faker==5.0.1
+factory-boy==3.1.0
+
+# daphne is a standalone python webserver used to run the Django application outside of a development env.
+daphne==4.0.0
+
+# requests is used to make python REST calls to the daphne server so we can automate scritps for creating reports
+requests==2.28.1
+
+# CTD is used to process BTL and ROS files
+ctd==1.4.2
+
+# used for reading and producing xlsx files
+openpyxl==3.0.10

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block extra_style %}
+    {{ block.super }}
+    <style>
+        .vertical-scrollbar {
+            position: relative;
+            height: 400px;
+            overflow: auto;
+        }
+
+        .horizontal-scrollbar {
+            position: relative;
+            overflow: auto;
+        }
+
+        .table-wrapper-scroll-y {
+            display: block;
+        }
+
+        .table-wrapper-scroll-y thead {
+            position: sticky;
+            top: 0px;
+            background: white;
+        }
+
+        .table-wrapper-scroll-x {
+            display: block;
+        }
+
+        .table-wrapper-scroll-x th:first-child {
+            position: sticky;
+            left: 0px;
+            background: white;
+            border-bottom-color: black;
+            border-bottom-width: 0.25em;
+        }
+
+        .selectedBg {
+            background: #8fd19e !important;
+        }
+
+    </style>
+{% endblock %}
+
+{% block title %}
+    {{ block.super }}
+    <span class="col-3">
+        <a class="btn btn-primary" href="{% url 'core:event_details' object.id %}">Events</a>
+        <a class="btn btn-primary" href="{% url 'core:ctd_details' object.id %}">CTD</a>
+        <a class="btn btn-warning" href="{% url 'core:event_summary_report' object.id %}">Elog Summary</a>
+    </span>
+{% endblock %}
+
+{% block content %}
+    <ul class="nav nav-tabs" id="samples" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="oxy-tab" data-bs-toggle="tab" data-bs-target="#oxy-tab-pane" type="button" role="tab" aria-controls="oxy-tab-pane" aria-selected="true">Oxygen</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="salt-tab" data-bs-toggle="tab" data-bs-target="#salt-tab-pane" type="button" role="tab" aria-controls="salt-tab-pane" aria-selected="false">Salts</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="chl-tab" data-bs-toggle="tab" data-bs-target="#chl-tab-pane" type="button" role="tab" aria-controls="chl-tab-pane" aria-selected="false">CHL</button>
+        </li>
+    </ul>
+    <div id="app" class="row mt-2">
+
+        <input id="chl-file" type="file" @change="load_chl" accept=".xlsx,.csv"
+           style="display: none" class="mb-2"/>
+
+        <input id="oxy-file" type="file" @change="load_oxygen" accept=".xlsx;.csv"
+               style="display: none" class="mb-2"/>
+
+        <input id="salt-file" type="file" @change="load_salt" accept=".xlsx"
+               style="display: none" class="mb-2"/>
+
+
+        <div class="row">
+            <div class="tab-content col" id="sample-content">
+                <div class="tab-pane fade show active" id="oxy-tab-pane" role="tabpanel" aria-labelledby="oxy-tab" tabindex="0">
+                    <div class="row">
+                        <div class="col">
+                            <span class="btn btn-primary p-2">
+                                <label for="oxy-file" classs="btn btn-primary load-button">
+                                    Load Oxygen
+                                </label>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="salt-tab-pane" role="tabpanel" aria-labelledby="salt-tab" tabindex="0">
+                    <div class="row">
+                        <div class="col">
+                            <span class="btn btn-primary p-2">
+                                <label for="salt-file" classs="btn btn-primary load-button">
+                                    Load Salt
+                                </label>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="chl-tab-pane" role="tabpanel" aria-labelledby="chl-tab" tabindex="0">
+                    <div class="row">
+                        <div class="col">
+                            <span class="btn btn-primary p-2">
+                                <label for="chl-file" classs="btn btn-primary load-button">
+                                    Load CHL
+                                </label>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block body_js %}
+    <script>
+    var app = new Vue({
+        el: '#app',
+        delimiters: ["${", "}"],
+        data: {
+            filesToUpload: null,
+            variable_headers: null,
+            interval_id: null
+        },
+        mounted: function() {
+        },
+        methods: {
+            load_oxygen(event) {
+                this.load_file(event, 'oxy');
+            },
+            load_salt(event) {
+                this.load_file(event, 'salt');
+            },
+            load_chl(event) {
+                this.load_file(event, 'chl');
+            },
+            load_file(event, type=null) {
+                this.filesToUpload = event.target.files;
+
+                let endpoint = "{% url 'core:ajax_load_samples' object.id %}" + ((type!=null)?"?type="+type:"");
+                // Send the selected files to the Python side to be loaded
+                filesApiService(endpoint, "POST", this.filesToUpload).then(response => {
+                    if(response!==undefined) {
+                        app.variable_headers = response['headers'];
+                    }
+                });
+
+                // this.interval_id = setInterval(this.get_load_status, 2000);
+            },
+        }
+    });
+
+    </script>
+{% endblock %}
