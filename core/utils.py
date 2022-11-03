@@ -1,9 +1,11 @@
 import os
-import threading
+import re
 import time
 
 import ctd
 import io
+
+import pandas
 import pytz
 
 from openpyxl import load_workbook
@@ -17,6 +19,8 @@ from django.http import JsonResponse
 
 from core import models
 from threading import Lock
+
+from . import validations
 
 processing = []
 
@@ -68,9 +72,8 @@ def get_ctd_files(request):
 
         read_ctd(btl_file)
         btl_files.append(btl_file)
-        post_validation(btl_file)
 
-        errors = models.LogError.objects.filter(file=btl_file)
+        errors = models.LogFileError.objects.filter(file=btl_file)
         if len(errors) > 0:
             return JsonResponse({'errors': [{"pk": e.pk, "line": e.line, "msg": e.message, "trace": e.stack_trace}
                                             for e in errors]})
@@ -93,14 +96,14 @@ def process_elog(request):
         log_file = log_dir.data_files.get(pk=fid)
         log_file.log_errors.all().delete()
 
-        events = models.Event.objects.filter(actions__in=log_file.actions.all()).distinct()
+        events = models.Event.objects.filter(actions__file=log_file).distinct()
         events.delete()
 
         read_elog(log_file)
-        log_files.append(log_file)
-        post_validation(log_files)
 
-        errors = models.LogError.objects.filter(file=log_file)
+        validations.validate_events(log_file)
+
+        errors = models.LogFileError.objects.filter(file=log_file)
         if len(errors) > 0:
             return JsonResponse({'errors': [{"pk": e.pk, "line": e.line, "msg": e.message, "trace": e.stack_trace}
                                             for e in errors]})
@@ -111,57 +114,32 @@ def process_elog(request):
     return JsonResponse({'action': 'updated'})
 
 
-def post_validation(log_files):
-    pass
-
-
 def read_elog(log_file):
     print(f"Processing {log_file.file.name}")
     file = join(log_file.directory.directory, log_file.file.name)
     stream = io.StringIO(open(file=file, mode="r").read())
 
-    buffer = dict()
+    # All mid objects start with $@MID@$ and end with a series of equal signs and a blank line.
+    # Using regular expressions we'll split the whole stream in to mid objects, then process each object
+    paragraph = re.split('====*\n\n', stream.read().strip())
+    for mid in paragraph:
 
-    lines_read = 0
-    data_read = 0  # this is the number of bytes read as opposed to the number of lines read
-    mid_obj = None
-    start_time = timer()
-    for line in stream:
-        lines_read += 1
-        data_read += len(line)
-        s_line = str(line).strip()
+        # Each variable in a mid object starts with the label followed by a colon followed by the value
+        tmp = re.findall('(.*?): *(.*?)\n', mid)
 
-        # skip blank lines and lines that start with '='
-        if s_line == '' or s_line.startswith("="):
-            continue
+        # easily convert the (label, value) tuples into a dictionary
+        buffer = dict(tmp)
 
-        # when you find a $@MID@$ label this is the beginning of a new object
-        if s_line.startswith("$@MID@$"):
+        # pop off the mid object number used to reference this process if there is an issue processing the mid object
+        mid_obj = buffer.pop('$@MID@$')
 
-            if mid_obj:
-                # We've found a new tag, dump the current data, if there is any, and load it to the database
-                _load_buffer(log_file, buffer, mid_obj)
-
-                buffer.clear()
-                print(f"buffer: {(timer()-start_time)}")
-                start_time=timer()
-
-            # for error recording what object were we reading and what line did it start on
-            mid_obj = s_line[8:].strip()
-        else:
-            # buffer the new line until we reach the end of the file or a new $@MID@$ tag
-            var = s_line.split(":", 1)
-            buffer[var[0].strip()] = var[1].strip() if len(var) > 1 else ""
-    else:
-        if mid_obj:
-            # We've found a new tag, dump the current data, if there is any, and load it to the database
-            _load_buffer(log_file, buffer, mid_obj)
+        # process the buffer creating the event objects
+        _load_buffer(log_file, buffer, mid_obj)
 
     print("Done")
 
 
 def _load_buffer(log_file, buffer, mid_obj):
-    time_start = timer()
 
     mission = log_file.directory.mission
     try:
@@ -176,11 +154,9 @@ def _load_buffer(log_file, buffer, mid_obj):
             station_name = buffer.pop('Station')
             instrument = buffer.pop('Instrument')
 
-            sample_id = buffer.pop('Sample ID').strip()
-            end_sample_id = buffer.pop('End_Sample_ID').strip()
+            sample_id = buffer.pop('Sample ID')
+            end_sample_id = buffer.pop('End_Sample_ID')
 
-            time_var = timer()
-            print(f'vars: {(time_var-time_start)}')
             if len(models.Event.objects.filter(mission=mission, event_id=event)) <= 0:
                 sdb = models.get_station(name=station_name)
 
@@ -189,8 +165,6 @@ def _load_buffer(log_file, buffer, mid_obj):
                                      end_sample_id=end_sample_id if end_sample_id != "" else None)
                 event.save()
 
-                time_event = timer()
-                print(f'Event: {(time_event-time_var)}')
                 try:
                     inst_type = models.InstrumentType[instrument.lower()].value
                 except KeyError:
@@ -199,12 +173,8 @@ def _load_buffer(log_file, buffer, mid_obj):
 
                 instr = models.Instrument(event=event, name=instrument, instrument_type=inst_type)
                 instr.save()
-                time_inst = timer()
-                print(f'Instrument: {(time_inst-time_event)}')
             else:
                 event = models.Event.objects.get(mission=mission, event_id=event)
-                time_event = timer()
-                print(f'Event: {(time_event-time_var)}')
 
             evt_type_t = buffer.pop("Action").lower().replace(' ', '_')
 
@@ -217,8 +187,6 @@ def _load_buffer(log_file, buffer, mid_obj):
 
             comment = buffer.pop("Comment")
 
-            time_date_lat = timer()
-            print(f'date time: {(time_date_lat-time_event)}')
             try:
                 evt_type = models.ActionType[evt_type_t].value
             except KeyError:
@@ -230,22 +198,14 @@ def _load_buffer(log_file, buffer, mid_obj):
                                    mid=mid_obj, action_type=evt_type, comment=comment)
             action.save()
 
-            time_action = timer()
-            print(f'actions: {(time_action-time_date_lat)}')
-            fields = []
-            for key in buffer.keys():
-                val = buffer[key]
-                f_name = models.get_variable_name(name=key)
-                field = models.VariableField(action=action, name=f_name, value=val)
-                fields.append(field)
+            fields = [models.VariableField(action=action, name=models.get_variable_name(name=k), value=v) for
+                      k, v in buffer.items()]
 
             models.VariableField.objects.bulk_create(fields)
-            time_varsfield = timer()
-            print(f'varfields: {(time_varsfield-time_action)}')
     except Exception as e:
-        error = models.LogError(file=log_file, line=mid_obj, message=f"ERR: {log_file.file.name} processing $@MID@$: "
-                                                                     f"{mid_obj}",
-                                stack_trace=str(e))
+        error = models.LogFileError(file=log_file, line=mid_obj, message=f"ERR: {log_file.file.name} "
+                                                                         f"processing $@MID@$: {mid_obj}",
+                                    stack_trace=str(e))
         error.save()
 
 
@@ -255,14 +215,11 @@ def process_ctd(request):
     errors = []
     if 'fid' in request.GET:
         fid = request.GET["fid"]
-        while len(processing) > 2:
-            time.sleep(1)
 
         processing.append(fid)
         ctd_file = models.DataFile.objects.get(pk=fid, file_type=models.FileType.btl.value)
 
         try:
-
             read_ctd(ctd_file)
             ctd_files.append(ctd_file)
 
@@ -272,17 +229,15 @@ def process_ctd(request):
 
             updated.append(fid)
         except models.Event.DoesNotExist as e:
-            err = models.LogError(file=ctd_file, line=-1, message=f"Error Processing file", stack_trace=str(e))
+            err = models.LogFileError(file=ctd_file, line=-1, message=f"Error Processing file", stack_trace=str(e))
             err.save()
-            errors.append(err)
-        finally:
-            processing.pop()
 
     elif 'did' in request.GET:
         did = request.GET["did"]
 
         post_ctd_validation(ctd_files)
 
+    errors = models.LogFileError.objects.filter(file=ctd_file)
     return JsonResponse({'updated': updated, "errors": [{"pk": e.pk, "line": e.line, "msg": e.message, "trace": e.stack_trace}
                                             for e in errors]})
 
@@ -293,6 +248,8 @@ def read_ctd(ctd_file):
 
 
 def read_btl(btl_file):
+    models.LogFileError.objects.filter(file=btl_file).delete()
+
     data_frame = ctd.from_btl(btl_file.file_path)
     metadata = getattr(data_frame, "_metadata")
     header = metadata['header'].split('\n')
@@ -353,7 +310,18 @@ def read_btl(btl_file):
 
         # remove old bottle data that's being replaced in this event
         models.Bottle.objects.filter(event=event, bottle_number=bottle_id).delete()
-        b_mod.append(models.Bottle(event=event, bottle_number=bottle_id, date_time=date))
+
+        bottle_label = event.sample_id + (bottle_id - 1)
+
+        if event.instrument.instrument_type == models.InstrumentType.ctd.value and bottle_label > event.end_sample_id:
+            err = models.LogFileError(file=btl_file, line=-1, message=f"Warning: Bottle ID ({bottle_label}) for event "
+                                                                      f"{event.event_id} is outside the ID range"
+                                                                      f" {event.sample_id} - {event.end_sample_id}",
+                                      stack_trace="")
+            err.save()
+
+        b_mod.append(models.Bottle(event=event, bottle_id=bottle_label,
+                                   bottle_number=bottle_id, date_time=date))
 
     models.Bottle.objects.bulk_create(b_mod)
 
@@ -378,37 +346,39 @@ def load_samples(request, pk):
     type = request.GET['type']
     files = request.FILES
 
-    mission = models.Mission.objects.get(pk=pk)
-
     file_names = files.keys()
     for fname in file_names:
-        f = files[fname]
+        models.LogError.objects.filter(file_name=fname).delete()
 
-    for fname in file_names:
-        process = models.Processing.objects.get(mission=mission, file_or_operation=fname)
+        print(f"Load Start: {fname}")
         if type == 'salt':
-            errors += load_salt(process, files[fname])
+            errors += load_salt(pk, files[fname])
         elif type == 'oxy':
-            errors += load_oxy(process, files[fname])
+            errors += load_oxy(pk, files[fname])
         elif type == 'chl':
-            errors += load_chl(process, files[fname])
+            errors += load_chl(pk, files[fname])
+        print(f"Load Finished")
 
-        # We're done with the process at this point
-        process.delete()
-
-    return JsonResponse({"errors": [{"pk": e.pk, "line": e.line, "msg": e.message, "trace": e.stack_trace}
-                                            for e in errors]})
+    return JsonResponse({"errors": [{"pk": e.pk, "msg": e.message, "trace": e.stack_trace} for e in errors]})
 
 
 def load_oxy(mission_id, stream):
     error = []
+    file = None
+    if str(stream).lower().endswith(".csv"):
+        file = pandas.read_csv(stream, skiprows=9).values
+    elif str(stream).lower().endswith(".dat"):
+        file = pandas.read_csv(stream, skiprows=8).values
+    else:
+        xls_obj = load_workbook(stream, data_only=True)
+        sheet = xls_obj.active
+        file = sheet.iter_rows(max_col=15, values_only=True)
 
-    xls_obj = load_workbook(stream, data_only=True)
-
-    sheet = xls_obj.active
+    # remove existing oxygen samples and re-load from file.
+    models.OxygenSample.objects.filter(bottle__event__mission_id=mission_id).delete()
 
     row_count = 0
-    for row in sheet.iter_rows(max_col=15, values_only=True):
+    for row in file:
         try:
             row_count += 1
             sample = row[0]
@@ -427,138 +397,104 @@ def load_oxy(mission_id, stream):
                     continue
 
                 sample_id = sample.split("_")
-                bottle = models.Bottle.objects.get(bottle_number=sample_id[0],
-                                                   event__mission_id=mission_id,
-                                                   event__instrument__instrument_type=models.InstrumentType.ctd.value)
-                if not ocean_models.OxygenSample.objects.filter(bottle_id=bottle.pk).exists():
-                    oxy = ocean_models.OxygenSample(bottle=bottle, winklers_1=o2)
-                    oxy.bottle.collect_oxygen = True
-                    oxy.save()
-                else:
-                    oxy = ocean_models.OxygenSample.objects.get(bottle_id=bottle.pk)
-                    oxy.bottle.collect_oxygen = True
-                    oxy.winklers_2 = o2
-                    oxy.save()
 
-        except (KeyError, ocean_models.Bottle.DoesNotExist) as e:
-            # if the current_id isn't in the samples array a KeyError is thrown, same thing as if we called
-            # models.Sample.objects.get(sample_id=current_id) and a DoesNotExist error was thrown.
-            err = models.Error(mission=process.mission, file_or_operation=process.file_or_operation,
-                               line=row_count, stack_trace=traceback.format_exc(),
-                               error_code=validation.ERR_MISSING_KEY,
-                               user_message=f"The requested sample {sample} does not exist")
-            err.save()
-            error.append(err)
-        except validation.ProcessError as e:
-            err = models.Error(mission=process.mission, file_or_operation=process.file_or_operation,
-                               line=row_count, stack_trace=traceback.format_exc(),
-                               error_code=e.args[0]["error_code"],
-                               user_message=e.args[0]["user_message"])
-            err.save()
-            error.append(err)
+                try:
+                    bottle = models.Bottle.objects.get(bottle_id=sample_id[0],
+                                                       event__sample_id__lte=sample_id[0],
+                                                       event__end_sample_id__gte=sample_id[0],
+                                                       event__mission_id=mission_id,
+                                                       event__instrument__instrument_type=models.InstrumentType.ctd.value)
+
+                    if not models.OxygenSample.objects.filter(bottle=bottle).exists():
+                        oxy = models.OxygenSample(bottle=bottle, winkler_1=o2)
+                        oxy.save()
+                    else:
+                        oxy = models.OxygenSample.objects.get(bottle=bottle)
+                        oxy.winkler_2 = o2
+                        oxy.save()
+
+                except models.Bottle.DoesNotExist as e:
+                    # if the current_id isn't in the samples array a KeyError is thrown, same thing as if we called
+                    # models.Sample.objects.get(sample_id=current_id) and a DoesNotExist error was thrown.
+                    err = models.LogError(file_name=str(stream), message=f"Bottle with id {sample_id[0]} Does not exist",
+                                          stack_trace=str(e))
+                    err.save()
+                    error.append(err)
         except Exception as e:
-            err = models.Error(mission=process.mission, file_or_operation=process.file_or_operation,
-                               line=row_count, stack_trace=traceback.format_exc(),
-                               error_code=validation.ERR_UNKNOWN,
-                               user_message="An unexpected error has occurred")
+            err = models.LogError(file_name=str(stream), message=f"Unexpected error processing file", stack_trace=str(e))
             err.save()
             error.append(err)
 
     return error
 
 
-def load_salt(process, stream):
+def load_salt(mission_id, stream):
     error = []
+
+    # remove existing samples and re-load from file.
+    models.SaltSample.objects.filter(bottle__event__mission_id=mission_id).delete()
 
     xls_obj = load_workbook(stream, data_only=True)
 
     sheet = xls_obj.active
 
-    # read rows until the first integer
-    # row =
-    # Prep the ProgressThread table and store the entry
-    process.status = 2
-    process.end = sheet.max_row
-    process.save()
-
-    t = time.time()
     row_count = 0
     scans = []
 
+    samples = []
     for row in sheet.iter_rows(max_col=13, values_only=True):
         try:
             row_count += 1
             sample_id = row[0]
-            reading = row[1]
-            value = row[2]
             bottle_label = row[3]
             date_time = row[4]
-            bath_temp = row[5]
-            uncorrected_ratio = row[6]
-            uncorrected_ratio_std = row[7]
-            correction = row[8]
-            adjusted_ratio = row[9]
             calculated_salinity = row[10]
-            calculated_salinity_std = row[11]
             comments = row[12]
 
-            if row_count % 50 == 0:
-                # DB updates are expensive, by doing a modulus and only updating the progress
-                # table every x rows we save a lot of time
-                process.current = row_count
-                process.save()
-
             if bottle_label and calculated_salinity and isfloat(calculated_salinity):
-                bottle = ocean_models.Bottle.objects.get(bottle_uid=bottle_label,
-                                                         activity__sample__set__cruise_id=process.mission.pk,
-                                                         activity__instrument__instrument_type=1)  # instrument_type=1 is CTD
+                try:
+                    date_time = datetime.strptime((datetime.strftime(date_time, '%Y-%m-%d %H:%M:%S') + " +00:00"),
+                                      '%Y-%m-%d %H:%M:%S %z')
+                    bottle = models.Bottle.objects.get(bottle_id=bottle_label,
+                                                       event__sample_id__lte=bottle_label,
+                                                       event__end_sample_id__gte=bottle_label,
+                                                       event__mission_id=mission_id,
+                                                       event__instrument__instrument_type=models.InstrumentType.ctd.value)
 
-                sample = ocean_models.SaltSample(bottle=bottle, sample_id=sample_id,
-                                                 calculated_salinity=calculated_salinity,
-                                                 comment=comments)
-                sample.save()
-
-                sample.created_at = date_time
-                sample.bottle.collect_salinity = True
-                sample.save()
-
-        except (KeyError, ocean_models.Bottle.DoesNotExist) as e:
-            err = models.Error(mission=process.mission, file_or_operation=process.file_or_operation,
-                               line=row_count, stack_trace=traceback.format_exc(),
-                               error_code=validation.ERR_MISSING_KEY,
-                               user_message=f"The requested sample {bottle_label} does not exist")
-            err.save()
-            error.append(err)
-        except validation.ProcessError as e:
-            err = models.Error(mission=process.mission, file_or_operation=process.file_or_operation,
-                               line=row_count, stack_trace=traceback.format_exc(),
-                               error_code=e.args[0]["error_code"],
-                               user_message=e.args[0]["user_message"])
-            err.save()
-            error.append(err)
+                    sample = models.SaltSample(bottle=bottle, sample_id=sample_id,
+                                               calculated_salinity=calculated_salinity,
+                                               sample_date=date_time, comments=comments)
+                    samples.append(sample)
+                except models.Bottle.DoesNotExist as e:
+                    # if the current_id isn't in the samples array a KeyError is thrown, same thing as if we called
+                    # models.Sample.objects.get(sample_id=current_id) and a DoesNotExist error was thrown.
+                    err = models.LogError(file_name=str(stream),
+                                          message=f"Bottle with id {bottle_label} Does not exist",
+                                          stack_trace=str(e))
+                    err.save()
+                    error.append(err)
         except Exception as e:
-            err = models.Error(mission=process.mission, file_or_operation=process.file_or_operation,
-                               line=row_count, stack_trace=traceback.format_exc(),
-                               error_code=validation.ERR_UNKNOWN,
-                               user_message="An unexpected error has occurred")
+            err = models.LogError(file_name=str(stream), message=f"Unexpected error processing file",
+                                  stack_trace=str(e))
             err.save()
             error.append(err)
+
+    models.SaltSample.objects.bulk_create(samples)
 
     return error
 
 
-def load_chl(process, stream):
+def load_chl(mission_id, stream):
     error = []
+    samples = []
+
+    # remove existing samples and re-load from file.
+    models.ChlSample.objects.filter(bottle__event__mission_id=mission_id).delete()
 
     xls_obj = load_workbook(stream, data_only=True)
 
-    sheet = xls_obj.active
+    sheet = xls_obj.worksheets[0]
 
-    process.end = sheet.max_row
-    process.status = 2
-    process.save()
-
-    t = time.time()
     row_count = 0
     cur_sample = None
     for row in sheet.iter_rows(max_col=14, values_only=True):
@@ -571,53 +507,33 @@ def load_chl(process, stream):
             mean_c = row[12]
             mean_p = row[13]
 
-            if row_count % 50 == 0:
-                # DB updates are expensive, by doing a modulus and only updating the progress
-                # table every x rows we save a lot of time
-                process.current = row_count
-                process.save()
-
             if (sample or cur_sample) and chl and phae and isfloat(chl) and isfloat(phae):
+                try:
+                    cur_sample = sample if sample else cur_sample
+                    bottle = models.Bottle.objects.get(bottle_id=cur_sample,
+                                                       event__sample_id__lte=cur_sample,
+                                                       event__end_sample_id__gte=cur_sample,
+                                                       event__mission_id=mission_id,
+                                                       event__instrument__instrument_type=models.InstrumentType.ctd.value)
 
-                if sample:
-                    cur_sample = sample
+                    sample_count = 1 if sample else 2
+                    chl_sample = models.ChlSample(bottle=bottle, sample_order=sample_count, chl=chl, phae=phae)
+                    samples.append(chl_sample)
+                except models.Bottle.DoesNotExist as e:
+                    # if the current_id isn't in the samples array a KeyError is thrown, same thing as if we called
+                    # models.Sample.objects.get(sample_id=current_id) and a DoesNotExist error was thrown.
+                    err = models.LogError(file_name=str(stream),
+                                          message=f"Bottle with id {cur_sample} Does not exist",
+                                          stack_trace=str(e))
+                    err.save()
+                    error.append(err)
 
-                bottle = ocean_models.Bottle.objects.get(bottle_uid=cur_sample,
-                                                         activity__sample__set__cruise_id=process.mission.pk,
-                                                         activity__instrument__instrument_type=1)
-
-                if not ocean_models.ChlSample.objects.filter(bottle=bottle).exists():
-                    chl_sample = ocean_models.ChlSample(bottle=bottle)
-                    chl_sample.bottle.collect_nutrients = True
-                    chl_sample.save()
-                else:
-                    chl_sample = ocean_models.ChlSample.objects.get(bottle=bottle)
-
-                chl_sub = ocean_models.ChlSubsample(chl_sample=chl_sample, chl=chl, phae=phae)
-                chl_sub.save()
-
-        except (KeyError, ocean_models.Bottle.DoesNotExist) as e:
-            # if the current_id isn't in the samples array a KeyError is thrown, same thing as if we called
-            # models.Sample.objects.get(sample_id=current_id) and a DoesNotExist error was thrown.
-            err = models.Error(mission=process.mission, file_or_operation=process.file_or_operation,
-                               line=row_count, stack_trace=traceback.format_exc(),
-                               error_code=validation.ERR_MISSING_KEY,
-                               user_message=f"The requested sample {sample} does not exist")
-            err.save()
-            error.append(err)
-        except validation.ProcessError as e:
-            err = models.Error(mission=process.mission, file_or_operation=process.file_or_operation,
-                               line=row_count, stack_trace=traceback.format_exc(),
-                               error_code=e.args[0]["error_code"],
-                               user_message=e.args[0]["user_message"])
-            err.save()
-            error.append(err)
         except Exception as e:
-            err = models.Error(mission=process.mission, file_or_operation=process.file_or_operation,
-                               line=row_count, stack_trace=traceback.format_exc(),
-                               error_code=validation.ERR_UNKNOWN,
-                               user_message="An unexpected error has occurred")
+            err = models.LogError(file_name=str(stream), message=f"Unexpected error processing file",
+                                  stack_trace=str(e))
             err.save()
             error.append(err)
+
+    models.ChlSample.objects.bulk_create(samples)
 
     return error

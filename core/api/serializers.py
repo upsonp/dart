@@ -5,6 +5,10 @@ from .. import models
 from rest_framework import serializers
 
 
+def get_bottle_id(bottle):
+    return bottle.bottle_id
+
+
 class InstrumentSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -122,3 +126,39 @@ class CTDReportSerializer(serializers.ModelSerializer):
     def get_bottles(self, instance):
         self.__bottles = models.Bottle.objects.filter(event__mission=instance).order_by("event__station_id").distinct()
         return [b.bottle_id for b in self.__bottles]
+
+
+class SampleSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        abstract = True
+
+    def get_bottle(self, instance):
+        return instance.bottle.bottle_id
+
+
+class OxygenSampleSerializer(SampleSerializer):
+
+    bottle = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.OxygenSample
+        fields = ['bottle', 'winkler_1', 'winkler_2']
+
+
+class SaltSampleSerializer(SampleSerializer):
+
+    bottle = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.SaltSample
+        fields = ['bottle', 'sample_id', 'sample_date', 'calculated_salinity', 'comments']
+
+
+class ChlSampleSerializer(SampleSerializer):
+
+    bottle = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.ChlSample
+        fields = ['bottle', 'sample_order', 'chl', 'phae', 'mean_chl', 'mean_phae']

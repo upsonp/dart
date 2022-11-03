@@ -25,3 +25,6 @@ ctd==1.4.2
 
 # used for reading and producing xlsx files
 openpyxl==3.0.10
+
+# Corrects network issues on windows
+PySocks==1.7.1

@@ -38,23 +38,19 @@ function apiService(endpoint, method, data) {
       .catch(error => console.log(error))
 }
 
-function filesApiService(endpoint, method, files) {
-  let data = new FormData(); // creates a new FormData object
+function filesApiService(endpoint, files) {
+      let formData = new FormData()
+      for( let file of files ) {
+          formData.append(file.name, file);
+      }
 
-  $.each(files, function() {
-    data.append(this.name, this)
-  })
-
-  const config = {
-    method: method,
-    body: data,
-    headers: {
-      'X-CSRFTOKEN': getCookie('csrftoken')
-    }
-  };
-  return fetch(endpoint, config)
-      .then(handleResponse)
-      .catch(error => console.log(error))
+      return fetch(endpoint, {
+          method: 'POST',
+          headers: {
+              "X-CSRFToken": getCookie('csrftoken')
+          },
+          body: formData
+      }).then(handleResponse).catch(error => { console.log(error)});
 }
 
 function fileApiService(endpoint, method, fieldName, file) {

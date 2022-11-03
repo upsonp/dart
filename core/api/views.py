@@ -48,3 +48,39 @@ class CTDReport(viewsets.ModelViewSet):
         if 'mission_id' in self.request.GET:
             return models.Mission.objects.filter(pk=self.request.GET['mission_id'])
         return models.Mission.objects.all()
+
+
+class OxygenViewset(viewsets.ModelViewSet):
+    queryset = models.OxygenSample.objects.all()
+
+    serializer_class = serializers.OxygenSampleSerializer
+
+    def get_queryset(self):
+        if 'mission_id' in self.request.GET:
+            return models.OxygenSample.objects.filter(bottle__event__mission=self.request.GET['mission_id'])
+
+        return models.OxygenSample.objects.all()
+
+
+class SaltViewset(viewsets.ModelViewSet):
+    queryset = models.SaltSample.objects.all()
+
+    serializer_class = serializers.SaltSampleSerializer
+
+    def get_queryset(self):
+        if 'mission_id' in self.request.GET:
+            return models.SaltSample.objects.filter(bottle__event__mission=self.request.GET['mission_id'])
+
+        return models.SaltSample.objects.all()
+
+
+class ChlViewset(viewsets.ModelViewSet):
+    queryset = models.ChlSample.objects.all()
+
+    serializer_class = serializers.ChlSampleSerializer
+
+    def get_queryset(self):
+        if 'mission_id' in self.request.GET:
+            return models.ChlSample.objects.filter(bottle__event__mission=self.request.GET['mission_id'])
+
+        return models.ChlSample.objects.all()

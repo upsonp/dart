@@ -1,10 +1,15 @@
+import numpy
+import django.utils.timezone
+
 from django.db import models
-from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 
-import os
-from os.path import join, isfile, isdir
-from os import path
+from os.path import join
+
+
+class ErrorType(models.IntegerChoices):
+    unknown = 0, "Unknown"
+    missing_id = 1, "Mission Sample ID"
 
 
 class ActionType(models.IntegerChoices):
@@ -97,11 +102,31 @@ class DataFile(models.Model):
         return join(self.directory.directory, self.file.name)
 
 
-class LogError(models.Model):
-    file = models.ForeignKey(DataFile, verbose_name="Log File", related_name="log_errors", on_delete=models.CASCADE)
+class Error(models.Model):
+
+    class Meta:
+        abstract = True
+
+    error_code = models.IntegerField(verbose_name="Error Code", default=0, choices=ErrorType.choices)
     message = models.CharField(verbose_name="Message", max_length=255)
-    line = models.IntegerField(verbose_name="Line #")
     stack_trace = models.TextField(verbose_name="Stack Trace")
+
+
+class LogError(Error):
+    file_name = models.CharField(verbose_name="File Name", max_length=50)
+
+
+class LogFileError(Error):
+    file = models.ForeignKey(DataFile, verbose_name="Log File", related_name="log_errors", on_delete=models.CASCADE)
+    line = models.IntegerField(verbose_name="Line #")
+
+
+@receiver(models.signals.pre_save, sender=LogFileError)
+def auto_set_file_name(sender, instance, **kwargs):
+    if not instance.pk:
+        return False
+
+    instance.file_name = instance.file.file
 
 
 class Station(SimpleLookupName):
@@ -164,7 +189,7 @@ class Action(models.Model):
     latitude = models.FloatField(verbose_name="Latitude")
     longitude = models.FloatField(verbose_name="Longitude")
 
-    # The file this action was loaded from. Events can span different fiels
+    # The file this action was loaded from. Events can span different fields
     file = models.ForeignKey(DataFile, verbose_name="File", related_name="actions", on_delete=models.CASCADE)
 
     # mid helps us track issues
@@ -187,12 +212,12 @@ class VariableField(models.Model):
 
 class Bottle(models.Model):
     event = models.ForeignKey(Event, verbose_name="Event", related_name="bottles", on_delete=models.CASCADE)
-    bottle_number = models.IntegerField(verbose_name="Bottle Number")
     date_time = models.DateTimeField(verbose_name="Fired Date/Time")
 
-    @property
-    def bottle_id(self):
-        return self.event.sample_id + (self.bottle_number-1)
+    # the bottle number is its order from 1 to N in a series of bottles as opposed tot he bottle ID which is the
+    # label placed on the bottle linking it to all samples that come from that bottle.
+    bottle_id = models.IntegerField(verbose_name="Bottle ID")
+    bottle_number = models.IntegerField(verbose_name="Bottle Number")
 
 
 class DataColumn(SimpleLookupName):
@@ -210,3 +235,36 @@ class BottleData(models.Model):
     column = models.ForeignKey(DataColumn, verbose_name="Column Heading", related_name="bottle_data",
                                on_delete=models.DO_NOTHING)
     value = models.FloatField(verbose_name="Value")
+
+
+class OxygenSample(models.Model):
+    bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="oxygen_data", on_delete=models.CASCADE)
+    winkler_1 = models.FloatField(verbose_name="Winkler 1")
+    winkler_2 = models.FloatField(verbose_name="Winkler 2", blank=True, null=True)
+
+
+class SaltSample(models.Model):
+    bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="salt_data", on_delete=models.CASCADE)
+    sample_date = models.DateTimeField(verbose_name="Sample Date", default=django.utils.timezone.now())
+    sample_id = models.CharField(verbose_name="Sample ID", default="", max_length=50)
+    calculated_salinity = models.FloatField(verbose_name="Calculated Salinity")
+    comments = models.TextField(verbose_name="Comments", blank=True, null=True)
+
+
+class ChlSample(models.Model):
+    bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="chl_data", on_delete=models.CASCADE)
+    sample_order = models.IntegerField(verbose_name="Sample Order")
+    chl = models.FloatField(verbose_name="CHL")
+    phae = models.FloatField(verbose_name="PHAE")
+
+    class Meta:
+        unique_together = ['bottle', 'sample_order']
+
+    @property
+    def mean_chl(self):
+        return numpy.average([c.chl for c in self.bottle.chl_data.all()])
+
+    @property
+    def mean_phae(self):
+        return numpy.average([c.phae for c in self.bottle.chl_data.all()])
+
