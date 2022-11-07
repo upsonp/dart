@@ -99,6 +99,14 @@ class EventDetails(GenericViewMixin, DetailView):
     def get_page_title(self):
         return f'{self.object.name} - Event Details'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context['action_types'] = [{"id": a[0], "name": a[1]} for a in models.ActionType.choices]
+        context['instrument_types'] = [{"id": i[0], "name": i[1]} for i in models.InstrumentType.choices]
+
+        return context
+
 
 class CTDDetails(GenericViewMixin, DetailView):
     model = models.Mission

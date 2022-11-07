@@ -11,9 +11,14 @@ def get_bottle_id(bottle):
 
 class InstrumentSerializer(serializers.ModelSerializer):
 
+    attachments = serializers.SerializerMethodField()
+
     class Meta:
         model = models.Instrument
         fields = '__all__'
+
+    def get_attachments(self, obj):
+        return [{'id': a.pk, 'name': a.name} for a in obj.attachments.all()]
 
 
 class ActionVariableSerializer(serializers.ModelSerializer):
@@ -77,6 +82,7 @@ class EventSerializer(serializers.ModelSerializer):
     instrument = InstrumentSerializer(many=False, read_only=True)
     actions = ActionSummarySerializer(many=True, read_only=True)
     station = serializers.SerializerMethodField("get_station_name")
+    has_data = serializers.SerializerMethodField("get_has_data")
 
     class Meta:
         model = models.Event
@@ -84,6 +90,9 @@ class EventSerializer(serializers.ModelSerializer):
 
     def get_station_name(self, obj):
         return {"id": obj.station.id, "name": obj.station.name}
+
+    def get_has_data(self, obj):
+        return len(models.Bottle.objects.filter(event=obj)) > 0
 
 
 class MissionReportSerializer(serializers.ModelSerializer):

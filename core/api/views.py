@@ -84,3 +84,15 @@ class ChlViewset(viewsets.ModelViewSet):
             return models.ChlSample.objects.filter(bottle__event__mission=self.request.GET['mission_id'])
 
         return models.ChlSample.objects.all()
+
+
+class StationNameViewset(viewsets.ModelViewSet):
+    queryset = models.Station.objects.all().distinct().order_by("name")
+    serializer_class = serializers.StationSerializer
+
+    def get_queryset(self):
+        if 'mission_id' in self.request.GET:
+            return models.Station.objects.filter(events__mission_id=self.request.GET['mission_id'])\
+                .distinct().order_by("name")
+
+        return models.Station.objects.all().distinct().order_by("name")

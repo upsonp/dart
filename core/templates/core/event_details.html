@@ -54,6 +54,50 @@
 
 {% block content %}
     <div id="app" class="row mt-2">
+        <div class="row mb-2">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <span class="col">
+                            <span class="form-group">
+                                <label for="filter.event_id">Event ID</label>
+                                <input v-model="filter.event_id" @change="apply_filter" id="filter.event_id" />
+                            </span>
+                            <span class="form-group">
+                                <label for="filter.station">Station</label>
+                                <select v-model="filter.station" @change="apply_filter" id="filter.station">
+                                    <option value="" selected></option>
+                                    <option v-for="station in opt_stations" :value="station.name">
+                                        ${station.name}
+                                    </option>
+                                </select>
+                            </span>
+                            <span class="form-group">
+                                <label for="filter.instrument">Instrument</label>
+                                <select v-model="filter.instrument" @change="apply_filter" id="filter.instrument">
+                                    <option value="" selected></option>
+                                    <option v-for="instrument in opt_instruments" :value="instrument.name">
+                                        ${instrument.name}
+                                    </option>
+                                </select>
+                            </span>
+                            <span class="form-group">
+                                <label for="filter.action_type">Actions</label>
+                                <select v-model="filter.action_type" @change="apply_filter" id="filter.action_type">
+                                    <option value="" selected></option>
+                                    <option v-for="action_type in opt_actions" :value="action_type.id">
+                                        ${ action_type.name }
+                                    </option>
+                                </select>
+                            </span>
+                        </span>
+                        <span class="col-1">
+                            <button class="col mr-1 btn btn-warning" v-on:click="clear_filters">Clear</button>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="row">
             <div class="col">
                 <div class="card">
@@ -67,7 +111,7 @@
                                 <tr><th>Event ID</th><th>Station</th><th>Instrument</th></tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="event in events" :key="event.event_id"
+                                    <tr v-for="event in filtered_events" :key="event.event_id"
                                     :class="selected_event && selected_event.event_id==event.event_id?'selectedBg':''"
                                     @click="get_details(event)">
                                         <td>${ event.event_id }</td><td>${ event.station.name }</td><td>${ event.instrument?event.instrument.name:"" }</td>
@@ -84,7 +128,7 @@
                         <div class="card-title">Event Details</div>
                     </div>
                     <div class="card-body">
-                        <div class="table-wrapper-scroll-y vertical-scrollbar">
+                        <div class="vertical-scrollbar">
                             <table class="table table-striped table-sm" v-if="selected_event && selected_event.sample_id">
                                 <thead>
                                 <tr><th>Start Bottle</th><th>End Bottle</th><th>Total Bottles</th></tr>
@@ -123,6 +167,16 @@
                                         <th>${ compute_total_drift_distance() }</th>
                                     </tr>
                                 </tfoot>
+                            </table>
+                            <table v-if="selected_event" class="table table-striped table-sm">
+                                <thead>
+                                <tr class="bg-light"><th colspan="2"><span class="h4">Attachments</span></th></tr>
+                                </thead>
+                                <tbody>
+                                <tr v-for="atta in selected_event.instrument.attachments" :key="atta.id">
+                                    <td>${ atta.name }</td>
+                                </tr>
+                                </tbody>
                             </table>
                             <table class="table table-striped table-sm">
                                 <thead>
@@ -199,18 +253,29 @@
             selected_event: null,
             actions: null,
             events: [],
+            filtered_events: [],
 
             loading_files: false,
             file_dir: "",
             files: [],
 
             to_process: [],
-            processing: []
+            processing: [],
 
+            filter: [],
+
+            opt_stations: [],
+            opt_actions: [],
+            opt_instruments: []
+
+        },
+        created: function () {
+            this.load_filter_options();
         },
         mounted: function() {
             this.get_files();
             this.load_events();
+            this.clear_filters();
         },
         methods: {
             get_files() {
@@ -220,11 +285,11 @@
                 apiService(endpoint, "GET").then(response => {
                     this.loading_files = false;
                     if(response !== undefined) {
-                        app.file_dir = response['dir'];
+                        this.file_dir = response['dir'];
                         if(response['files']) {
-                            app.files = response['files'];
-                            for(let i=0; i<app.files.length; i++){
-                                app.files[i].loading = false;
+                            this.files = response['files'];
+                            for(let i=0; i<this.files.length; i++){
+                                this.files[i].loading = false;
                             }
                         }
                     }
@@ -232,7 +297,7 @@
             },
             load_file(index) {
                 if(index == null) {
-                    for(let i=0; i<app.files.length; i++) {
+                    for(let i=0; i<this.files.length; i++) {
                         this.load_file(i);
                     }
                     return;
@@ -240,7 +305,7 @@
 
                 if(this.processing.length >= 2){
                     this.to_process.push(index);
-                    app.files[index].bg = 'btn-light';
+                    this.files[index].bg = 'btn-light';
                     this.$forceUpdate();
                     return;
                 }
@@ -248,17 +313,17 @@
                 this.processing.push(index);
 
                 let endpoint = "{% url 'core:process_elog' %}?mission_id={{ object.id }}";
-                app.files[index].loading = true;
+                this.files[index].loading = true;
 
-                endpoint = endpoint + "&fid=" + app.files[index].fid;
+                endpoint = endpoint + "&fid=" + this.files[index].fid;
 
                 this.$forceUpdate();
                 apiService(endpoint, "POST").then(response => {
-                    app.files[index].loading = false;
+                    this.files[index].loading = false;
                     this.$forceUpdate();
                     if(response!==undefined) {
                         if(response['errors'] && response['errors'].length > 0) {
-                            app.files[index].bg = "btn-warning";
+                            this.files[index].bg = "btn-warning";
                             msg = "Errors\n\n"
                             for(let i=0; i<response['errors'].length; i++) {
                                 err = response['errors'][i];
@@ -266,11 +331,11 @@
                             }
                             window.alert(msg);
                         } else {
-                            app.files[index].bg = "btn-success";
+                            this.files[index].bg = "btn-success";
                         }
                         this.load_events();
                     } else {
-                        app.files[index].bg = "btn-danger";
+                        this.files[index].bg = "btn-danger";
                     }
 
                     this.processing.shift();
@@ -347,7 +412,8 @@
 
                 apiService(endpoint, "GET").then(response => {
                     if(response!==undefined) {
-                        app.events = response;
+                        this.filtered_events = this.events = response;
+
                     }
                 });
             },
@@ -358,9 +424,52 @@
 
                 apiService(endpoint, "GET").then(response => {
                     if(response!==undefined) {
-                        app.actions = response;
+                        this.actions = response;
                     }
                 });
+            },
+            load_filter_options() {
+                let endpoint = "{% url 'core-api:station-name-list' %}?mission_id={{ object.id }}";
+                apiService(endpoint, "GET").then(response => {
+                  if(response!==undefined){
+                      this.opt_stations = response
+                  }
+                });
+
+                {% for a in action_types %}this.opt_actions.push( {id: {{ a.id }}, name: "{{ a.name }}" });
+                {% endfor %}
+
+                {% for i in instrument_types %}this.opt_instruments.push( {id: {{ i.id }}, name: "{{ i.name }}" });
+                {% endfor %}
+            },
+            clear_filters() {
+                this.filter.station = "";
+                this.filter.instrument = "";
+                this.filter.action_type = "";
+                this.filter.event_id = "";
+                this.apply_filter();
+            },
+            apply_filter() {
+                this.filtered_events = this.events
+                if( this.filter.event_id ) {
+                    this.filtered_events = this.filtered_events.filter(v => v.event_id == this.filter.event_id);
+                }
+                if( this.filter.station ) {
+                    this.filtered_events = this.filtered_events.filter(v => v.station.name == this.filter.station);
+                }
+                if( this.filter.instrument ) {
+                    this.filtered_events = this.filtered_events.filter(v => v.instrument.name == this.filter.instrument);
+                }
+                if( this.filter.action_type ) {
+                    this.filtered_events = this.filtered_events.filter(v => {
+                        for(let act of v.actions) {
+                            if(act.action_type===this.filter.action_type) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+                }
             }
         }
     });

@@ -153,6 +153,7 @@ def _load_buffer(log_file, buffer, mid_obj):
 
             station_name = buffer.pop('Station')
             instrument = buffer.pop('Instrument')
+            att_str = buffer.pop('Attached')
 
             sample_id = buffer.pop('Sample ID')
             end_sample_id = buffer.pop('End_Sample_ID')
@@ -173,6 +174,14 @@ def _load_buffer(log_file, buffer, mid_obj):
 
                 instr = models.Instrument(event=event, name=instrument, instrument_type=inst_type)
                 instr.save()
+
+                atts = att_str.split(" | ")
+                attachments = []
+                for a in atts:
+                    if a.strip() != '':
+                        attachments.append(models.Attachments(instrument=instr, name=a))
+
+                models.Attachments.objects.bulk_create(attachments)
             else:
                 event = models.Event.objects.get(mission=mission, event_id=event)
 
