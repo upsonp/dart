@@ -62,6 +62,11 @@ class MissionMixin():
     page_title = "Missions"
 
 
+class ErrorMixin():
+    model = models.Error
+    page_title = "Errors"
+
+
 class MissionFilterView(MissionMixin, GenericFlilterMixin):
     filterset_class = filters.MissionFilter
     new_url = reverse_lazy("core:mission_new")
@@ -114,3 +119,7 @@ class SampleDetails(GenericViewMixin, DetailView):
 
     def get_page_title(self):
         return f'{self.object.name} - Sample Details'
+
+
+class ErrorFilter(ErrorMixin, GenericFlilterMixin):
+    filterset_class = filters.ErrorFilter

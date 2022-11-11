@@ -12,6 +12,8 @@ urlpatterns = [
     path('mission/sample/<int:pk>/', views.SampleDetails.as_view(), name="sample_details"),
     path('mission/delete/', views.mission_delete, name="mission_delete"),
 
+    path('error/', views.ErrorFilter.as_view(), name="error_fitler"),
+
     path('load/', utils.get_files, name="load_files"),
     path('load/ctd/', utils.get_ctd_files, name="load_ctd_files"),
     path('load/samples/<int:pk>/', utils.load_samples, name="ajax_load_samples"),

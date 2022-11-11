@@ -104,19 +104,18 @@ class DataFile(models.Model):
 
 class Error(models.Model):
 
-    class Meta:
-        abstract = True
-
     error_code = models.IntegerField(verbose_name="Error Code", default=0, choices=ErrorType.choices)
     message = models.CharField(verbose_name="Message", max_length=255)
     stack_trace = models.TextField(verbose_name="Stack Trace")
 
 
-class LogError(Error):
+class LogError(models.Model):
+    error = models.OneToOneField(Error, verbose_name="Error", on_delete=models.CASCADE)
     file_name = models.CharField(verbose_name="File Name", max_length=50)
 
 
-class LogFileError(Error):
+class LogFileError(models.Model):
+    error_code = models.OneToOneField(Error, verbose_name="Error", on_delete=models.CASCADE)
     file = models.ForeignKey(DataFile, verbose_name="Log File", related_name="log_errors", on_delete=models.CASCADE)
     line = models.IntegerField(verbose_name="Line #")
 

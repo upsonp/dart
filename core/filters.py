@@ -9,3 +9,9 @@ class MissionFilter(django_filters.FilterSet):
     class Meta:
         model = models.Mission
         fields = ['name']
+
+
+class ErrorFilter(django_filters.FilterSet):
+    class Meta:
+        model = models.Error
+        fields = '__all__'
