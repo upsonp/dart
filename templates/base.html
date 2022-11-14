@@ -26,10 +26,7 @@
 <div class="container">
     <div class="row mt-2">
     {% block header_buttons %}
-        <span class="col-1"><a class="btn btn-primary" href="/">Home</a></span>
-        <span class="col-2">
-            <a class="btn btn-primary" href="{% url 'core:mission_filter' %}">Missions</a>
-        </span>
+        <span class="col-1"><a class="btn btn-primary" href="{{ home_url }}">Home</a></span>
     {% endblock %}
     </div>
     <div id="page_title_area" class="row mt-2">

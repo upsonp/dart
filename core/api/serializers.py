@@ -10,7 +10,6 @@ def get_bottle_id(bottle):
 
 
 class InstrumentSerializer(serializers.ModelSerializer):
-
     attachments = serializers.SerializerMethodField()
 
     class Meta:
@@ -22,7 +21,6 @@ class InstrumentSerializer(serializers.ModelSerializer):
 
 
 class ActionVariableSerializer(serializers.ModelSerializer):
-
     name = serializers.SerializerMethodField("get_field_name")
 
     class Meta:
@@ -34,7 +32,6 @@ class ActionVariableSerializer(serializers.ModelSerializer):
 
 
 class ActionSerializer(serializers.ModelSerializer):
-
     action_variables = ActionVariableSerializer(many=True, read_only=True)
     action_type = serializers.SerializerMethodField("get_action_type")
     date_time = serializers.SerializerMethodField("get_date_time")
@@ -60,7 +57,6 @@ class ActionSerializer(serializers.ModelSerializer):
 
 
 class ActionSummarySerializer(serializers.ModelSerializer):
-
     file = serializers.SerializerMethodField("get_log_file_name")
 
     class Meta:
@@ -72,7 +68,6 @@ class ActionSummarySerializer(serializers.ModelSerializer):
 
 
 class StationSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.Station
         fields = '__all__'
@@ -96,7 +91,6 @@ class EventSerializer(serializers.ModelSerializer):
 
 
 class MissionReportSerializer(serializers.ModelSerializer):
-
     events = EventSerializer(many=True, read_only=True)
 
     class Meta:
@@ -105,7 +99,6 @@ class MissionReportSerializer(serializers.ModelSerializer):
 
 
 class CTDData(serializers.ModelSerializer):
-
     values = serializers.SerializerMethodField()
 
     class Meta:
@@ -117,7 +110,6 @@ class CTDData(serializers.ModelSerializer):
 
 
 class CTDReportSerializer(serializers.ModelSerializer):
-
     __headers = None
     __bottles = None
 
@@ -129,8 +121,10 @@ class CTDReportSerializer(serializers.ModelSerializer):
         fields = ['headers', 'bottles']
 
     def get_headers(self, instance):
-        self.__headers = models.DataColumn.objects.filter(bottle_data__bottle__event__mission=instance).distinct()
-        return [{"header": h.name, "data": [d.value for d in h.bottle_data.all().order_by("bottle__event__station_id")]} for h in self.__headers]
+        self.__headers = models.Sensor.objects.filter(bottle_data__bottle__event__mission=instance).distinct()
+        return [{"header": (h.name + (f"({h.units})" if h.units else "")), "data":
+            [d.value for d in h.bottle_data.all().order_by("bottle__event__station_id")]}
+                for h in self.__headers]
 
     def get_bottles(self, instance):
         self.__bottles = models.Bottle.objects.filter(event__mission=instance).order_by("event__station_id").distinct()
@@ -138,7 +132,6 @@ class CTDReportSerializer(serializers.ModelSerializer):
 
 
 class SampleSerializer(serializers.ModelSerializer):
-
     class Meta:
         abstract = True
 
@@ -147,7 +140,6 @@ class SampleSerializer(serializers.ModelSerializer):
 
 
 class OxygenSampleSerializer(SampleSerializer):
-
     bottle = serializers.SerializerMethodField()
 
     class Meta:
@@ -156,7 +148,6 @@ class OxygenSampleSerializer(SampleSerializer):
 
 
 class SaltSampleSerializer(SampleSerializer):
-
     bottle = serializers.SerializerMethodField()
 
     class Meta:
@@ -165,7 +156,6 @@ class SaltSampleSerializer(SampleSerializer):
 
 
 class ChlSampleSerializer(SampleSerializer):
-
     bottle = serializers.SerializerMethodField()
 
     class Meta:

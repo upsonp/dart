@@ -18,12 +18,17 @@ def mission_delete(request):
 
 class GenericViewMixin:
     page_title = None
+    home_url = reverse_lazy('core:mission_filter')
+
+    def get_home_url(self):
+        return self.home_url
 
     def get_page_title(self):
         return self.page_title
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["home_url"] = self.get_home_url()
         context["page_title"] = self.get_page_title()
 
         return context
@@ -72,22 +77,27 @@ class MissionCreateView(MissionMixin, GenericCreateView):
     form_class = forms.MissionSettingsForm
     template_name = "core/mission_settings.html"
 
+    def get_success_url(self):
+        success = super().get_success_url()
+        success = reverse_lazy("core:event_details", args=(self.object.pk, ))
+        return success
+
     def form_valid(self, form):
         response = super().form_valid(form)
-
-        data = form.cleaned_data
-
-        dfd = models.DataFileDirectory(mission=self.object, directory=data['elog_dir'])
-        dfd.save()
-
-        dfd_type = models.DataFileDirectoryType(directory=dfd, file_type=models.FileType.log.value)
-        dfd_type.save()
-
-        dfd = models.DataFileDirectory(mission=self.object, directory=data['bottle_dir'])
-        dfd.save()
-
-        dfd_type = models.DataFileDirectoryType(directory=dfd, file_type=models.FileType.btl.value)
-        dfd_type.save()
+        #
+        # data = form.cleaned_data
+        #
+        # dfd = models.DataFileDirectory(mission=self.object, directory=data['elog_dir'])
+        # dfd.save()
+        #
+        # dfd_type = models.DataFileDirectoryType(directory=dfd, file_type=models.FileType.log.value)
+        # dfd_type.save()
+        #
+        # dfd = models.DataFileDirectory(mission=self.object, directory=data['bottle_dir'])
+        # dfd.save()
+        #
+        # dfd_type = models.DataFileDirectoryType(directory=dfd, file_type=models.FileType.btl.value)
+        # dfd_type.save()
 
         return response
 
@@ -102,6 +112,8 @@ class EventDetails(GenericViewMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        elog_dir = self.object.mission_directories.filter(file_types__file_type=models.FileType.log.value)
+        context['elog_dir'] = elog_dir[0].directory if elog_dir else ""
         context['action_types'] = [{"id": a[0], "name": a[1]} for a in models.ActionType.choices]
         context['instrument_types'] = [{"id": i[0], "name": i[1]} for i in models.InstrumentType.choices]
 
@@ -114,6 +126,14 @@ class CTDDetails(GenericViewMixin, DetailView):
 
     def get_page_title(self):
         return f'{self.object.name} - CTD Details'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        ctd_dir = self.object.mission_directories.filter(file_types__file_type=models.FileType.btl.value)
+        context['ctd_dir'] = ctd_dir[0].directory if ctd_dir else ""
+
+        return context
 
 
 class SampleDetails(GenericViewMixin, DetailView):

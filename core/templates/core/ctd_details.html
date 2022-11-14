@@ -1,47 +1,4 @@
-{% extends "base.html" %}
-
-{% block extra_style %}
-    {{ block.super }}
-    <style>
-        .vertical-scrollbar {
-            position: relative;
-            height: 400px;
-            overflow: auto;
-        }
-
-        .horizontal-scrollbar {
-            position: relative;
-            overflow: auto;
-        }
-
-        .table-wrapper-scroll-y {
-            display: block;
-        }
-
-        .table-wrapper-scroll-y thead {
-            position: sticky;
-            top: 0px;
-            background: white;
-        }
-
-        .table-wrapper-scroll-x {
-            display: block;
-        }
-
-        .table-wrapper-scroll-x tbody th:first-child {
-            position: sticky;
-            left: 0px;
-            background: white;
-            border-bottom-color: black;
-            border-bottom-width: 0.25em;
-        }
-
-        .selectedBg {
-            background: #8fd19e !important;
-        }
-
-    </style>
-{% endblock %}
+{% extends "core/core_details_template.html" %}
 
 {% block title %}
     {{ block.super }}
@@ -98,11 +55,7 @@
                                         <label for="file_dir">CTD Directory</label>
                                     </span>
                                     <span class="col">
-                                    <span v-if="loading_files" class="loading">
-                                        <span class="spinner-border" style="width: 1rem; height: 1rem;" role="status">
-                                            <span class="sr-only"></span>
-                                        </span>
-                                    </span>
+                                         <input class="col" id="file_dir" type="text" v-model="ctd_dir" v-on:change="update_directory" />
                                     </span>
                                 </div>
                                 <div id="file_dir" class="h3">${ file_dir }</div>
@@ -147,7 +100,7 @@
         delimiters: ["${", "}"],
         data: {
             ctd: [],
-            ctd_dir: null,
+            ctd_dir: "{{ ctd_dir|escapejs }}",
             loading: false,
             loading_ctd: false,
             loading_files: false,
@@ -161,6 +114,14 @@
             this.get_files();
         },
         methods: {
+            update_directory() {
+                let endpoint = "{% url 'core:set_dir' object.id %}?dir=" + this.ctd_dir + "&type=btl";
+                apiService(endpoint, "POST").then(response => {
+                    if(response !== undefined) {
+                        this.get_files();
+                    }
+                });
+            },
             get_files() {
                 let endpoint = "{% url 'core:load_files' %}?file_type=btl&mission_id={{ object.id }}";
 

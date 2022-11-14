@@ -5,6 +5,9 @@ from . import views, utils, reports
 app_name = 'core'
 
 urlpatterns = [
+
+    path('mission/dir/<int:mission>/', utils.set_directory, name="set_dir"),
+
     path('mission/', views.MissionFilterView.as_view(), name="mission_filter"),
     path('mission/new/', views.MissionCreateView.as_view(), name="mission_new"),
     path('mission/event/<int:pk>/', views.EventDetails.as_view(), name="event_details"),
@@ -19,5 +22,9 @@ urlpatterns = [
     path('process/core/', utils.process_elog, name="process_elog"),
     path('process/ctd/', utils.process_ctd, name="process_ctd"),
 
-    path('report/core/summary/<int:pk>/', reports.report_elog_summary, name="event_summary_report"),
+    path('report/core/elog_summary/<int:pk>/', reports.report_elog_summary, name="event_summary_report"),
+    path('report/core/profile_summary/<int:pk>/', reports.report_profile_summary, name="profile_summary_report"),
+    path('report/core/salt_report/<int:pk>/', reports.report_salt_report, name="salt_report"),
+    path('report/core/oxygen_report/<int:pk>/', reports.report_oxy_report, name="oxygen_report"),
+    path('report/core/biosum_report/<int:pk>/', reports.report_biosum_report, name="biosum_report"),
 ]

@@ -1,55 +1,11 @@
-{% extends "base.html" %}
-
-{% block extra_style %}
-    {{ block.super }}
-    <style>
-        .vertical-scrollbar {
-            position: relative;
-            height: 400px;
-            overflow: auto;
-        }
-
-        .horizontal-scrollbar {
-            position: relative;
-            overflow: auto;
-        }
-
-        .table-wrapper-scroll-y {
-            display: block;
-        }
-
-        .table-wrapper-scroll-y thead {
-            position: sticky;
-            top: 0px;
-            background: white;
-        }
-
-        .table-wrapper-scroll-x {
-            display: block;
-        }
-
-        .table-wrapper-scroll-x th:first-child {
-            position: sticky;
-            left: 0px;
-            background: white;
-            border-bottom-color: black;
-            border-bottom-width: 0.25em;
-        }
-
-        .selectedBg {
-            background: #8fd19e !important;
-        }
-
-    </style>
-{% endblock %}
+{% extends "core/core_details_template.html" %}
 
 {% block title %}
     {{ block.super }}
     <span class="col-3">
         <a class="btn btn-primary" href="{% url 'core:ctd_details' object.id %}">CTD</a>
         <a class="btn btn-primary" href="{% url 'core:sample_details' object.id %}">Samples</a>
-        <a class="btn btn-warning" href="{% url 'core:event_summary_report' object.id %}">Elog Summary</a>
-    </span>
+   </span>
 {% endblock %}
 
 {% block content %}
@@ -209,11 +165,7 @@
                                         <label for="file_dir">Elog Directory</label>
                                     </span>
                                     <span class="col">
-                                    <span v-if="loading_files" class="loading">
-                                        <span class="spinner-border" style="width: 1rem; height: 1rem;" role="status">
-                                            <span class="sr-only"></span>
-                                        </span>
-                                    </span>
+                                         <input class="col" id="file_dir" type="text" v-model="elog_dir" v-on:change="update_directory" />
                                     </span>
                                 </div>
                                 <div id="file_dir" class="h3">${ file_dir }</div>
@@ -250,6 +202,7 @@
         el: '#app',
         delimiters: ["${", "}"],
         data: {
+            elog_dir: "{{ elog_dir|escapejs }}",
             selected_event: null,
             actions: null,
             events: [],
@@ -278,6 +231,14 @@
             this.clear_filters();
         },
         methods: {
+            update_directory() {
+                let endpoint = "{% url 'core:set_dir' object.id %}?dir=" + this.elog_dir + "&type=log";
+                apiService(endpoint, "POST").then(response => {
+                    if(response !== undefined) {
+                        this.get_files();
+                    }
+                });
+            },
             get_files() {
                 let endpoint = "{% url 'core:load_files' %}?file_type=log&mission_id={{ object.id }}";
 

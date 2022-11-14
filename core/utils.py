@@ -41,12 +41,24 @@ def convertDMS_degs(dms_string):
     return degs
 
 
+def convertDegs_DMS(dd):
+    d = int(dd)
+    m = float((dd-d)*60.0)
+
+    return [d, m]
+
+
 def get_files(request):
     type = models.FileType[request.GET['file_type'].lower()] if 'file_type' in request.GET else None
     mission = request.GET['mission_id'] if 'mission_id' in request.GET else None
 
     files = []
-    log_dir = models.DataFileDirectory.objects.get(mission_id=mission, file_types__file_type=type.value)
+    t_log_dir = models.DataFileDirectory.objects.filter(mission_id=mission, file_types__file_type=type.value)
+    if t_log_dir:
+        log_dir = t_log_dir[0]
+    else:
+        return JsonResponse({'files':[]})
+
     for path in os.listdir(log_dir.directory):
         if os.path.isfile(join(log_dir.directory, path)) and path.lower().endswith(type.label.lower()):
             if len(log_dir.data_files.filter(file=path)) <= 0:
@@ -294,19 +306,40 @@ def read_btl(btl_file):
     for c in data_frame.columns:
         col_headers.append(c)
 
-    pop = ['Bottle', 'Date', 'Statistic']
+    pop = ['Bottle', 'Date', 'Statistic', 'Latitude', 'Longitude']
     for h in pop:
         b_idx = col_headers.index(h)
         col_headers.pop(b_idx)
 
     columns = []
     for h in col_headers:
-        c_name = h
-        if len(models.DataColumn.objects.filter(name=c_name)) <= 0:
-            columns.append(models.DataColumn(name=c_name))
+        # I've found that sensor columns usually have a naming convention where its xxx#yyy where the number denotes
+        # the primary (0) sensor and the secondary (1) sensor. However, what follows the number is also relevant
+        # to the sensor. Usually what follows the sensor priority denotes the unit. (i.e Sbeox0ML/L vs. Sbeox0V)
+        c_name = re.split("(\d)", h, 1)
 
-    if len(columns) > 0:
-        models.DataColumn.objects.bulk_create(columns)
+        priority = int(c_name[1]) + 1 if len(c_name) > 1 else None
+        units = c_name[2].lower() if len(c_name) > 2 else None
+
+        sensor = models.Sensor.objects.filter(name=c_name[0])
+        if priority:
+            sensor = sensor.filter(priority=priority)
+
+        if units:
+            sensor = sensor.filter(units=units.lower())
+
+        if len(sensor) <= 0:
+
+            sen = models.Sensor(name=c_name[0])
+            sen.sensor_type = models.get_sensor_type(c_name[0])
+
+            if priority:
+                sen.priority = priority  # priorty in a sensor name starts counting at zero
+            if units:
+                sen.units = units
+
+            sen.save()
+
 
     b_mod = []
     for i in range(0, (data_frame.shape[0]), 2):
@@ -546,3 +579,17 @@ def load_chl(mission_id, stream):
     models.ChlSample.objects.bulk_create(samples)
 
     return error
+
+
+def set_directory(request, mission):
+    dir = request.GET['dir']
+    f_type = request.GET['type']
+    mission = models.Mission.objects.get(pk=mission)
+
+    dfd = models.DataFileDirectory(mission=mission, directory=dir)
+    dfd.save()
+
+    dfd_type = models.DataFileDirectoryType(directory=dfd, file_type=models.FileType[f_type].value)
+    dfd_type.save()
+
+    return JsonResponse({})
