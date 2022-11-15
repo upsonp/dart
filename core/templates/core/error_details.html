@@ -1,0 +1,68 @@
+{% extends "core/core_details_template.html" %}
+
+{% block title %}
+    {{ block.super }}
+    <span class="col-3">
+        <a class="btn btn-primary" href="{% url 'core:event_details' object.id %}">Events</a>
+        <a class="btn btn-primary" href="{% url 'core:ctd_details' object.id %}">CTD</a>
+        <a class="btn btn-primary" href="{% url 'core:sample_details' object.id %}">Samples</a>
+    </span>
+{% endblock %}
+
+{% block content %}
+    <div id="app">
+        <table class="table table-striped" v-if="errors" >
+            <thead>
+                <tr>
+                    <th>File/Object</th>
+                    <th>Line</th>
+                    <th>Error Type</th>
+                    <th>message</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="error in errors.mission_errors">
+                    <td>${ error.file_name }</td>
+                    <td>${ error.line }</td>
+                    <td>${ get_error_type(error.error_code) }</td>
+                    <td>${ error.message }</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
+
+{% block body_js %}
+    <script>
+    const app = new Vue({
+        el: '#app',
+        delimiters: ["${", "}"],
+        data: {
+            errors: [],
+            error_type: [],
+        },
+        mounted: function() {
+            {% for e in error_type %}this.error_type.push( {id: {{ e.id }}, name: "{{ e.name }}" });{% endfor %}
+            this.get_errors();
+        },
+        methods: {
+            get_error_type(err_code) {
+                err = this.error_type.filter(e => {
+                    return e.id === err_code;
+                });
+
+                return err[0].name;
+            },
+            get_errors() {
+                let endpoint = "{% url 'core-api:error-list' %}?mission_id=" + {{ object.id }};
+                apiService(endpoint, "GET").then(response => {
+                    if(response !== undefined) {
+                        this.errors = response[0];
+                    }
+                });
+            }
+        }
+
+    });
+    </script>
+{% endblock %}

@@ -5,6 +5,7 @@
     <span class="col-3">
         <a class="btn btn-primary" href="{% url 'core:event_details' object.id %}">Events</a>
         <a class="btn btn-primary" href="{% url 'core:sample_details' object.id %}">Samples</a>
+        <a class="btn btn-primary" href="{% url 'core:error_details' object.id %}">View Errors</a>
     </span>
 {% endblock %}
 
@@ -164,7 +165,7 @@
 
                 this.processing.push(index);
 
-                let endpoint = "{% url 'core:process_ctd' %}?mission_id={{ object.id }}";
+                let endpoint = "{% url 'core:process_ctd' object.id %}?mission_id={{ object.id }}";
                 app.files[index].loading = true;
 
                 endpoint = endpoint + "&fid=" + app.files[index].fid;

@@ -11,7 +11,9 @@ from os.path import join
 
 class ErrorType(models.IntegerChoices):
     unknown = 0, "Unknown"
-    missing_id = 1, "Mission Sample ID"
+    missing_id = 1, "Missing Sample ID"
+    bad_id = 2, "Bad Sample ID"
+    missing_information = 3, "Missing Information"
 
 
 class ActionType(models.IntegerChoices):
@@ -169,27 +171,21 @@ class DataFile(models.Model):
 
 
 class Error(models.Model):
-
-    class Meta:
-        abstract = True
+    mission = models.ForeignKey(Mission, verbose_name="mission", related_name="mission_errors",
+                                on_delete=models.CASCADE)
+    file = models.ForeignKey(DataFile, verbose_name="Log File", blank=True, null=True, related_name="log_errors",
+                             on_delete=models.CASCADE)
+    file_name = models.TextField(verbose_name="file", max_length=50)
 
     error_code = models.IntegerField(verbose_name="Error Code", default=0, choices=ErrorType.choices)
     message = models.CharField(verbose_name="Message", max_length=255)
     stack_trace = models.TextField(verbose_name="Stack Trace")
+    line = models.IntegerField(verbose_name="Line/Object #")
 
 
-class LogError(Error):
-    file_name = models.CharField(verbose_name="File Name", max_length=50)
-
-
-class LogFileError(Error):
-    file = models.ForeignKey(DataFile, verbose_name="Log File", related_name="log_errors", on_delete=models.CASCADE)
-    line = models.IntegerField(verbose_name="Line #")
-
-
-@receiver(models.signals.pre_save, sender=LogFileError)
+@receiver(models.signals.pre_save, sender=Error)
 def auto_set_file_name(sender, instance, **kwargs):
-    if not instance.pk:
+    if not instance.file:
         return False
 
     instance.file_name = instance.file.file

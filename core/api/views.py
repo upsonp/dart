@@ -96,3 +96,14 @@ class StationNameViewset(viewsets.ModelViewSet):
                 .distinct().order_by("name")
 
         return models.Station.objects.all().distinct().order_by("name")
+
+
+class ErrorViewset(viewsets.ModelViewSet):
+    queryset = models.Mission.objects.all()
+    serializer_class = serializers.MissionErrorSerializer
+
+    def get_queryset(self):
+        if 'mission_id' in self.request.GET:
+            return models.Mission.objects.filter(pk=self.request.GET['mission_id'])
+
+        return models.Mission.objects.all()

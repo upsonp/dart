@@ -47,6 +47,19 @@ def generate_bottle_report(bottles, row_dic):
     return [headers, rows]
 
 
+def get_error_report(errors, row_dic):
+    headers = row_dic.keys()
+    rows = []
+    for e in errors:
+        row = []
+        for k in headers:
+            row.append(str(row_dic[k](e)))
+
+        rows.append(row)
+
+    return [headers, rows]
+
+
 def generate_event_report(events, row_dic):
     headers = row_dic.keys()
     rows = []
@@ -373,3 +386,38 @@ def generate_biosum_report(mission):
 
     bottles = models.Bottle.objects.filter(event__mission=mission).order_by("event__event_id")
     return generate_bottle_report(bottles=bottles, row_dic=row_dic)
+
+
+# called from the web browser to download a copy of the report
+def report_error_report(request, pk):
+    mission = models.Mission.objects.get(id=pk)
+    report = generate_error_report(mission=mission)
+
+    file_name = f"{mission.name}_Error_Report.csv"
+
+    return send_report(report, file_name)
+
+
+# callable from a django shell to create and save the report
+def print_error_report(mission_id, output_file_location="./"):
+    mission = models.Mission.objects.get(pk=mission_id)
+    report = generate_error_report(mission=mission)
+
+    # this probably should use the mission date
+    file_name = f"{mission.name}_Error_Report.csv"
+
+    print_report(output_file_location=output_file_location, file_name=file_name, report=report)
+
+
+def generate_error_report(mission):
+
+    row_dic = {
+        "File": lambda e: e.file_name,
+        "Line": lambda e: e.line,
+        "Error_Type": lambda e: models.ErrorType(e.error_code).label,
+        "Message": lambda e: e.message,
+        "Stack_Trace": lambda e: e.stack_trace
+    }
+
+    errors = models.Error.objects.filter(mission=mission)
+    return get_error_report(errors=errors, row_dic=row_dic)

@@ -57,6 +57,7 @@
             <li v-for="report in reports"><a class="dropdown-item" href="{% url 'core:salt_report' object.id %}">Salt Report</a></li>
             <li v-for="report in reports"><a class="dropdown-item" href="{% url 'core:oxygen_report' object.id %}">Oxygen Report</a></li>
             <li v-for="report in reports"><a class="dropdown-item" href="{% url 'core:biosum_report' object.id %}">BioSum Report</a></li>
+            <li v-for="report in reports"><a class="dropdown-item" href="{% url 'core:error_report' object.id %}">Error Report</a></li>
           </ul>
         </span>
     </span>

@@ -15,6 +15,8 @@ router.register(r'oxygen', views.OxygenViewset, basename='oxygen')
 router.register(r'salt', views.SaltViewset, basename='salt')
 router.register(r'chl', views.ChlViewset, basename='chl')
 
+router.register(r'error', views.ErrorViewset, basename='error')
+
 # I use the following to print URLs when the server starts to get an idea of how to reverse them
 # import pprint
 # pprint.pprint(router.get_urls())

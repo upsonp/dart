@@ -161,3 +161,19 @@ class ChlSampleSerializer(SampleSerializer):
     class Meta:
         model = models.ChlSample
         fields = ['bottle', 'sample_order', 'chl', 'phae', 'mean_chl', 'mean_phae']
+
+
+class ErrorSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = models.Error
+        fields = '__all__'
+
+
+class MissionErrorSerializer(serializers.ModelSerializer):
+
+    mission_errors = ErrorSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = models.Mission
+        fields = ['id', 'name', 'mission_errors']
