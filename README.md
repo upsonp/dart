@@ -13,3 +13,5 @@ My recommendation is to download (Pycharm)[https://www.jetbrains.com/pycharm/] a
 `daphne dart.asgi:application`  
   
 open web browser, navigate to `localhost:8000`
+
+to stop the server press `ctrl+c`
