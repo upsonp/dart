@@ -18,7 +18,7 @@ to stop the server press `ctrl+c`
 
 # Command Line Setup
 
-Open commandline, navigate to parent directory where applciation will be deployed.
+Open commandline, navigate to parent directory where applciation will be deployed.  
 `git clone https://github.com/upsonp/dart.git`  
 `cd dart`  
 `python -m venv dart_env`  
