@@ -7,21 +7,23 @@ Download (Pycharm)[https://www.jetbrains.com/pycharm/] and use the terminal to c
 
 # Pycharm Setup
 
-`git clone https://github.com/upsonp/dart.git`  
-`python -m pip install -r requirements.txt`  
-`python manage.py migrate`  
-`daphne dart.asgi:application`  
+* Open a terminal view  
+* `git clone https://github.com/upsonp/dart.git`  
+* `python -m pip install -r requirements.txt`  
+* `python manage.py migrate`  
+* `daphne dart.asgi:application`  
   
 # Command Line Setup
 
-Open commandline, navigate to parent directory where applciation will be deployed.  
-`git clone https://github.com/upsonp/dart.git`  
-`cd dart`  
-`python -m venv dart_env`  
-`.\dart_env\Scripts\activate`  
-`python -m pip install -r requirements.txt`  
-`python manage.py migrate`  
-`daphne dart.asgi:application`
+* Open commandline  
+* Navigate to parent directory where applciation will be deployed  
+* `git clone https://github.com/upsonp/dart.git`  
+* `cd dart`  
+* `python -m venv dart_env`  
+* `.\dart_env\Scripts\activate`  
+* `python -m pip install -r requirements.txt`  
+* `python manage.py migrate`  
+* `daphne dart.asgi:application`
 
 # Accessing DART
 open web browser, navigate to `localhost:8000`
