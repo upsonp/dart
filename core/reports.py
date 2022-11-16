@@ -47,7 +47,7 @@ def generate_bottle_report(bottles, row_dic):
     return [headers, rows]
 
 
-def get_error_report(errors, row_dic):
+def generate_error_report(errors, row_dic):
     headers = row_dic.keys()
     rows = []
     for e in errors:
@@ -134,7 +134,7 @@ def get_oxygen_average(b):
 # called from the web browser to download a copy of the report
 def report_elog_summary(request, pk):
     mission = models.Mission.objects.get(id=pk)
-    report = generate_elog_summary(mission=mission)
+    report = get_elog_summary(mission=mission)
 
     file_name = f"{mission.name}_Elog_Summary.csv"
 
@@ -144,7 +144,7 @@ def report_elog_summary(request, pk):
 # callable from a django shell to create and save the report
 def print_elog_summary(mission_id, output_file_location="./"):
     mission = models.Mission.objects.get(pk=mission_id)
-    report = generate_elog_summary(mission=mission)
+    report = get_elog_summary(mission=mission)
 
     # this probably should use the mission date
     file_name = f"{mission.name}_Elog_Summary.csv"
@@ -153,7 +153,7 @@ def print_elog_summary(mission_id, output_file_location="./"):
 
 
 # returns an array of two objects, element 0 is the header line, element 1 is the data
-def generate_elog_summary(mission):
+def get_elog_summary(mission):
     def get_elapsed_time(e):
         elapsed_time = 0
         try:
@@ -201,7 +201,7 @@ def generate_elog_summary(mission):
 # called from the web browser to download a copy of the report
 def report_profile_summary(request, pk):
     mission = models.Mission.objects.get(id=pk)
-    report = generate_profile_summary(mission=mission)
+    report = get_profile_summary(mission=mission)
 
     file_name = f"{mission.name}_Profile_Summary.csv"
 
@@ -211,7 +211,7 @@ def report_profile_summary(request, pk):
 # callable from a django shell to create and save the report
 def print_profile_summary(mission_id, output_file_location="./"):
     mission = models.Mission.objects.get(pk=mission_id)
-    report = generate_profile_summary(mission=mission)
+    report = get_profile_summary(mission=mission)
 
     # this probably should use the mission date
     file_name = f"{mission.name}_Profile_Summary.csv"
@@ -219,7 +219,7 @@ def print_profile_summary(mission_id, output_file_location="./"):
     print_report(output_file_location=output_file_location, file_name=file_name, report=report)
 
 
-def generate_profile_summary(mission):
+def get_profile_summary(mission):
 
     row_dic = {
         "Name": lambda b: b.event.mission.name,
@@ -251,7 +251,7 @@ def generate_profile_summary(mission):
 # called from the web browser to download a copy of the report
 def report_salt_report(request, pk):
     mission = models.Mission.objects.get(id=pk)
-    report = generate_salt_report(mission=mission)
+    report = get_salt_report(mission=mission)
 
     file_name = f"{mission.name}_Salt_Rpt.csv"
 
@@ -261,7 +261,7 @@ def report_salt_report(request, pk):
 # callable from a django shell to create and save the report
 def print_salt_report(mission_id, output_file_location="./"):
     mission = models.Mission.objects.get(pk=mission_id)
-    report = generate_salt_report(mission=mission)
+    report = get_salt_report(mission=mission)
 
     # this probably should use the mission date
     file_name = f"{mission.name}_Salt_Rpt.csv"
@@ -269,7 +269,7 @@ def print_salt_report(mission_id, output_file_location="./"):
     print_report(output_file_location=output_file_location, file_name=file_name, report=report)
 
 
-def generate_salt_report(mission):
+def get_salt_report(mission):
     row_dic = {
         "Name": lambda b: b.event.mission.name,
         "Station": lambda b: b.event.station.name,
@@ -293,7 +293,7 @@ def generate_salt_report(mission):
 # called from the web browser to download a copy of the report
 def report_oxy_report(request, pk):
     mission = models.Mission.objects.get(id=pk)
-    report = generate_oxy_report(mission=mission)
+    report = get_oxy_report(mission=mission)
 
     file_name = f"{mission.name}_Oxygen_Rpt.csv"
 
@@ -303,7 +303,7 @@ def report_oxy_report(request, pk):
 # callable from a django shell to create and save the report
 def print_oxy_report(mission_id, output_file_location="./"):
     mission = models.Mission.objects.get(pk=mission_id)
-    report = generate_oxy_report(mission=mission)
+    report = get_oxy_report(mission=mission)
 
     # this probably should use the mission date
     file_name = f"{mission.name}_Oxygen_Rpt.csv"
@@ -311,7 +311,7 @@ def print_oxy_report(mission_id, output_file_location="./"):
     print_report(output_file_location=output_file_location, file_name=file_name, report=report)
 
 
-def generate_oxy_report(mission):
+def get_oxy_report(mission):
     row_dic = {
         "Name": lambda b: b.event.mission.name,
         "Station": lambda b: b.event.station.name,
@@ -331,7 +331,7 @@ def generate_oxy_report(mission):
 # called from the web browser to download a copy of the report
 def report_biosum_report(request, pk):
     mission = models.Mission.objects.get(id=pk)
-    report = generate_biosum_report(mission=mission)
+    report = get_biosum_report(mission=mission)
 
     file_name = f"{mission.name}_Auto_BioSum.csv"
 
@@ -341,7 +341,7 @@ def report_biosum_report(request, pk):
 # callable from a django shell to create and save the report
 def print_biosum_report(mission_id, output_file_location="./"):
     mission = models.Mission.objects.get(pk=mission_id)
-    report = generate_biosum_report(mission=mission)
+    report = get_biosum_report(mission=mission)
 
     # this probably should use the mission date
     file_name = f"{mission.name}_Auto_BioSum.csv"
@@ -349,7 +349,7 @@ def print_biosum_report(mission_id, output_file_location="./"):
     print_report(output_file_location=output_file_location, file_name=file_name, report=report)
 
 
-def generate_biosum_report(mission):
+def get_biosum_report(mission):
     def get_ctd_index(b):
         events = [e.event_id for e in models.Event.objects.filter(instrument__instrument_type=
                                                                   models.InstrumentType.ctd.value).order_by("event_id")]
@@ -391,7 +391,7 @@ def generate_biosum_report(mission):
 # called from the web browser to download a copy of the report
 def report_error_report(request, pk):
     mission = models.Mission.objects.get(id=pk)
-    report = generate_error_report(mission=mission)
+    report = get_error_report(mission=mission)
 
     file_name = f"{mission.name}_Error_Report.csv"
 
@@ -401,7 +401,7 @@ def report_error_report(request, pk):
 # callable from a django shell to create and save the report
 def print_error_report(mission_id, output_file_location="./"):
     mission = models.Mission.objects.get(pk=mission_id)
-    report = generate_error_report(mission=mission)
+    report = get_error_report(mission=mission)
 
     # this probably should use the mission date
     file_name = f"{mission.name}_Error_Report.csv"
@@ -409,15 +409,15 @@ def print_error_report(mission_id, output_file_location="./"):
     print_report(output_file_location=output_file_location, file_name=file_name, report=report)
 
 
-def generate_error_report(mission):
+def get_error_report(mission):
 
     row_dic = {
         "File": lambda e: e.file_name,
-        "Line": lambda e: e.line,
+        "Line/Object": lambda e: e.line,
         "Error_Type": lambda e: models.ErrorType(e.error_code).label,
         "Message": lambda e: e.message,
         "Stack_Trace": lambda e: e.stack_trace
     }
 
     errors = models.Error.objects.filter(mission=mission)
-    return get_error_report(errors=errors, row_dic=row_dic)
+    return generate_error_report(errors=errors, row_dic=row_dic)

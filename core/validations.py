@@ -38,7 +38,7 @@ def validate_events(log_file):
                                    message=f"Event {e.event_id} in file {log_file.file.name}"
                                            f" sample id '{e.sample_id}' is larger than end"
                                            f" sample id '{e.end_sample_id}",
-                                   error_code=models.ErrorType.bad_id)
+                                   error_code=models.ErrorType.bad_id.value)
                 errors.append(err)
 
         elif e.instrument.instrument_type == models.InstrumentType.ringnet.value:

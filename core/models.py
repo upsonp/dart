@@ -304,7 +304,14 @@ class BottleData(models.Model):
     value = models.FloatField(verbose_name="Value")
 
 
-class OxygenSample(models.Model):
+class Sample(models.Model):
+    class Meta:
+        abstract = True
+
+    file = models.FileField(verbose_name="File")
+
+
+class OxygenSample(Sample):
     bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="oxygen_data", on_delete=models.CASCADE)
     winkler_1 = models.FloatField(verbose_name="Winkler 1")
     winkler_2 = models.FloatField(verbose_name="Winkler 2", blank=True, null=True)
@@ -323,7 +330,7 @@ class OxygenSample(models.Model):
         return total/count
 
 
-class SaltSample(models.Model):
+class SaltSample(Sample):
     bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="salt_data", on_delete=models.CASCADE)
     sample_date = models.DateTimeField(verbose_name="Sample Date", default=django.utils.timezone.now())
     sample_id = models.CharField(verbose_name="Sample ID", default="", max_length=50)
@@ -331,7 +338,7 @@ class SaltSample(models.Model):
     comments = models.TextField(verbose_name="Comments", blank=True, null=True)
 
 
-class ChlSample(models.Model):
+class ChlSample(Sample):
     bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="chl_data", on_delete=models.CASCADE)
     sample_order = models.IntegerField(verbose_name="Sample Order")
     chl = models.FloatField(verbose_name="CHL")

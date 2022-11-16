@@ -28,3 +28,7 @@ openpyxl==3.0.10
 
 # Corrects network issues on windows
 PySocks==1.7.1
+
+# Whitenoise is used to track static content so that a user doesn't need to do 'python manage.py collectstatic'
+# as a setup requirement
+whitenoise==6.2.0

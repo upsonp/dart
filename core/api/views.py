@@ -107,3 +107,14 @@ class ErrorViewset(viewsets.ModelViewSet):
             return models.Mission.objects.filter(pk=self.request.GET['mission_id'])
 
         return models.Mission.objects.all()
+
+
+class GetErrorReport(viewsets.ModelViewSet):
+    queryset = models.Error.objects.all()
+    serializer_class = serializers.ErrorSerializer
+
+    def get_queryset(self):
+        if 'mission_id' in self.request.GET:
+            return models.Error.objects.filter(mission_id=self.request.GET['mission_id'])
+
+        return models.Error.objects.all()

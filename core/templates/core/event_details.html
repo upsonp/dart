@@ -173,8 +173,13 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div id="load_all">
-                            <button class="btn btn-primary col-2 m-1" v-on:click="load_file()">All</button>
+                        <div id="load_all" class="row">
+                            <span class="col-2">
+                            <button class="btn btn-primary col-12 m-1" v-on:click="load_file()">All</button>
+                            </span>
+                            <span class="col-2">
+                            <button class="btn btn-secondary col-12 m-1" v-on:click="load_file(-1)">Unprocessed</button>
+                            </span>
                         </div>
                         <span v-for="(f, index) in files" :key="f.fid">
                             <button v-on:click="load_file(index)" class="btn col-2 m-1"
@@ -246,11 +251,19 @@
                 apiService(endpoint, "GET").then(response => {
                     this.loading_files = false;
                     if(response !== undefined) {
-                        this.file_dir = response['dir'];
+                        app.file_dir = response['dir'];
                         if(response['files']) {
-                            this.files = response['files'];
-                            for(let i=0; i<this.files.length; i++){
-                                this.files[i].loading = false;
+                            app.files = response['files'];
+                            for(let i=0; i<app.files.length; i++){
+                                app.files[i].loading = false;
+                                app.files[i].bg = "btn-success";
+                                if(app.files[i].errors) {
+                                    app.files[i].bg = "btn-warning";
+                                }
+
+                                if(!app.files[i].processed) {
+                                    app.files[i].bg = "btn-secondary";
+                                }
                             }
                         }
                     }
@@ -258,15 +271,26 @@
             },
             load_file(index) {
                 if(index == null) {
-                    for(let i=0; i<this.files.length; i++) {
+                    for(let i=0; i<app.files.length; i++) {
                         this.load_file(i);
+                    }
+                    return;
+                } else if(index === -1) {
+                    let filted_files = app.files.filter(function(f) {
+                        return !f.processed;
+                    });
+                    for(let i=0; i<filted_files.length; i++) {
+                        this.load_file(app.files.indexOf(filted_files[i]))
                     }
                     return;
                 }
 
+                // For now I'm using the client to queue up files to load and limiting how many can be sent to the server
+                // Once I've worked out server side threading I'll do this on the server.
+                // processing more than 1 file at a time for elog doesn't add any benifit
                 if(this.processing.length >= 1){
                     this.to_process.push(index);
-                    this.files[index].bg = 'btn-light';
+                    app.files[index].bg = 'btn-light';
                     this.$forceUpdate();
                     return;
                 }
@@ -274,29 +298,31 @@
                 this.processing.push(index);
 
                 let endpoint = "{% url 'core:process_elog' %}?mission_id={{ object.id }}";
-                this.files[index].loading = true;
+                app.files[index].loading = true;
 
-                endpoint = endpoint + "&fid=" + this.files[index].fid;
+                endpoint = endpoint + "&fid=" + app.files[index].fid;
 
                 this.$forceUpdate();
                 apiService(endpoint, "POST").then(response => {
-                    this.files[index].loading = false;
+                    app.files[index].loading = false;
                     this.$forceUpdate();
                     if(response!==undefined) {
                         if(response['errors'] && response['errors'].length > 0) {
-                            this.files[index].bg = "btn-warning";
+                            app.files[index].bg = "btn-warning";
                             msg = "Errors\n\n"
                             for(let i=0; i<response['errors'].length; i++) {
                                 err = response['errors'][i];
                                 msg += err.msg + ": " + err.trace + "\n\n";
                             }
+                            app.files[index].processed = true;
                             window.alert(msg);
                         } else {
-                            this.files[index].bg = "btn-success";
+                            app.files[index].bg = "btn-success";
+                            app.files[index].processed = true;
                         }
                         this.load_events();
                     } else {
-                        this.files[index].bg = "btn-danger";
+                        app.files[index].bg = "btn-danger";
                     }
 
                     this.processing.shift();

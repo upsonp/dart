@@ -45,7 +45,7 @@
 
 {% block title %}
     {{ block.super }}
-    <span class="col-3">
+    <span class="col-2">
         <span class="dropdown">
           <a class="btn btn-secondary dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             Downloadable Reports
@@ -60,5 +60,8 @@
             <li v-for="report in reports"><a class="dropdown-item" href="{% url 'core:error_report' object.id %}">Error Report</a></li>
           </ul>
         </span>
+    </span>
+    <span class="col-2">
+        <a class="btn btn-warning" href="{% url 'core:error_details' object.id %}">View Errors</a>
     </span>
 {% endblock %}
