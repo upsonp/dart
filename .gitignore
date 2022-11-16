@@ -57,3 +57,4 @@ node_modules/
 /public
 webpack-stats.json
 tmp_*
+/dart/settings_local.py

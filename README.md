@@ -13,7 +13,6 @@ Download (Pycharm)[https://www.jetbrains.com/pycharm/] and use the terminal to c
 * Open the dart directroy as a new project
 * `python -m pip install -r requirements.txt`  
 * `python manage.py migrate`  
-* `daphne dart.asgi:application`  
   
 # Command Line Setup
 
@@ -24,7 +23,9 @@ Download (Pycharm)[https://www.jetbrains.com/pycharm/] and use the terminal to c
 * `python -m venv dart_env`  
 * `.\dart_env\Scripts\activate`  
 * `python -m pip install -r requirements.txt`  
-* `python manage.py migrate`  
+* `python manage.py migrate`
+
+# Start the server
 * `daphne dart.asgi:application`
 
 # Accessing DART
