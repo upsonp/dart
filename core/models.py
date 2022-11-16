@@ -1,3 +1,5 @@
+import re
+
 import numpy
 import django.utils.timezone
 
@@ -9,7 +11,9 @@ from os.path import join
 
 class ErrorType(models.IntegerChoices):
     unknown = 0, "Unknown"
-    missing_id = 1, "Mission Sample ID"
+    missing_id = 1, "Missing Sample ID"
+    bad_id = 2, "Bad Sample ID"
+    missing_information = 3, "Missing Information"
 
 
 class ActionType(models.IntegerChoices):
@@ -44,6 +48,62 @@ class FileType(models.IntegerChoices):
     btl = 2, ".BTL"
 
 
+class SensorType(models.IntegerChoices):
+    unknown = 0, "Unknown"
+    pressure = 1, "Pressure"
+    temperature = 2, "Temperature"
+    salinity = 3, "Salinity"
+    oxygen = 4, "Oxygen"
+    sigma = 5, "Sigma-é"
+    time = 6, "Time"
+    conductivity = 7, "Conductivity"
+    ph = 8, "Ph"
+    chl = 9, 'Chlorophyll'
+    turw = 10, 'CStarAt'
+    alt = 11, 'Altimeter'
+    par = 12, 'Par'
+    cdom = 13, 'CDOM'
+    other = 99, "other"
+
+
+# we're going to make or best guess on what the sensor type is based on names me know.
+# in the future as we build up a repo of sensors this will be unnecessary
+def get_sensor_type(sensor_name):
+    name = sensor_name.lower().replace("-", "_")
+    if name == 'prdm':
+        return SensorType.pressure.value
+    elif name == "sbeox":
+        return SensorType.oxygen.value
+    elif name == "sal":
+        return SensorType.salinity.value
+    elif name == "potemp":
+        return SensorType.temperature.value
+    elif name == "sigma_é":
+        return SensorType.sigma.value
+    elif name == "scan":
+        return SensorType.other.value
+    elif name == "times":
+        return SensorType.time.value
+    elif name == "t":
+        return SensorType.temperature.value
+    elif name == "c":
+        return SensorType.conductivity.value
+    elif name == "ph":
+        return SensorType.time.value
+    elif name == "fleco_afl":
+        return SensorType.chl.value
+    elif name == "cstartat":
+        return SensorType.turw.value
+    elif name == "altm":
+        return SensorType.alt.value
+    elif name == "par/log":
+        return SensorType.par.value
+    elif name == "wetcdom":
+        return SensorType.cdom.value
+    else:
+        return SensorType.unknown.value
+
+
 def __get_lookup__(model, name):
     obj = model.objects.get(name=name) if len(model.objects.filter(name=name)) > 0 else None
 
@@ -63,7 +123,15 @@ def get_station(name):
 
 
 def get_data_column_name(name):
-    return __get_lookup__(DataColumn, name)
+    sensor_vars = re.split("(\d)", name, 1)
+    sensor = Sensor.objects.filter(name=sensor_vars[0])
+    if len(sensor_vars) > 1:
+        sensor = sensor.filter(priority=(int(sensor_vars[1])+1))
+
+    if len(sensor_vars) > 2 and sensor_vars[2] != "":
+        sensor = sensor.filter(units=sensor_vars[2].lower())
+
+    return sensor[0]
 
 
 # Used to track a list of reusable names, should be extended to create separated tables
@@ -103,27 +171,21 @@ class DataFile(models.Model):
 
 
 class Error(models.Model):
-
-    class Meta:
-        abstract = True
+    mission = models.ForeignKey(Mission, verbose_name="mission", related_name="mission_errors",
+                                on_delete=models.CASCADE)
+    file = models.ForeignKey(DataFile, verbose_name="Log File", blank=True, null=True, related_name="log_errors",
+                             on_delete=models.CASCADE)
+    file_name = models.TextField(verbose_name="file", max_length=50)
 
     error_code = models.IntegerField(verbose_name="Error Code", default=0, choices=ErrorType.choices)
     message = models.CharField(verbose_name="Message", max_length=255)
     stack_trace = models.TextField(verbose_name="Stack Trace")
+    line = models.IntegerField(verbose_name="Line/Object #")
 
 
-class LogError(Error):
-    file_name = models.CharField(verbose_name="File Name", max_length=50)
-
-
-class LogFileError(Error):
-    file = models.ForeignKey(DataFile, verbose_name="Log File", related_name="log_errors", on_delete=models.CASCADE)
-    line = models.IntegerField(verbose_name="Line #")
-
-
-@receiver(models.signals.pre_save, sender=LogFileError)
+@receiver(models.signals.pre_save, sender=Error)
 def auto_set_file_name(sender, instance, **kwargs):
-    if not instance.pk:
+    if not instance.file:
         return False
 
     instance.file_name = instance.file.file
@@ -220,30 +282,55 @@ class Bottle(models.Model):
     bottle_number = models.IntegerField(verbose_name="Bottle Number")
 
 
-class DataColumn(SimpleLookupName):
-    label = models.CharField(verbose_name="Column Label", max_length=30)
+class Sensor(models.Model):
+    name = models.TextField(verbose_name="Sensor Name")
+    sensor_type = models.IntegerField(verbose_name="Sensor Type", choices=SensorType.choices,
+                                      default=SensorType.unknown.value)
+    priority = models.IntegerField(verbose_name="Priority", default=1,
+                                   help_text="1 = primary sensor, 2 = secondary sensor, 3 = tertiary, etc.")
+    units = models.TextField(verbose_name="Units", blank=True, null=True)
 
-    def save(self, *args, **kwargs):
-        if not self.label or self.label.strip() == "":
-            self.label = self.name
+    def __str__(self):
+        return self.name + (f'({self.units})' if self.units else "")
 
-        super().save(*args, **kwargs)
+    class Meta:
+        unique_together = ['name', 'priority', 'units']
 
 
 class BottleData(models.Model):
     bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="bottle_data", on_delete=models.CASCADE)
-    column = models.ForeignKey(DataColumn, verbose_name="Column Heading", related_name="bottle_data",
+    column = models.ForeignKey(Sensor, verbose_name="Column Heading", related_name="bottle_data",
                                on_delete=models.DO_NOTHING)
     value = models.FloatField(verbose_name="Value")
 
 
-class OxygenSample(models.Model):
+class Sample(models.Model):
+    class Meta:
+        abstract = True
+
+    file = models.FileField(verbose_name="File")
+
+
+class OxygenSample(Sample):
     bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="oxygen_data", on_delete=models.CASCADE)
     winkler_1 = models.FloatField(verbose_name="Winkler 1")
     winkler_2 = models.FloatField(verbose_name="Winkler 2", blank=True, null=True)
 
+    @property
+    def average(self):
+        total = 0
+        count = 0
+        if self.winkler_1:
+            total = self.winkler_1
+            count += 1
+        if self.winkler_2:
+            total += self.winkler_2
+            count += 1
 
-class SaltSample(models.Model):
+        return total/count
+
+
+class SaltSample(Sample):
     bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="salt_data", on_delete=models.CASCADE)
     sample_date = models.DateTimeField(verbose_name="Sample Date", default=django.utils.timezone.now())
     sample_id = models.CharField(verbose_name="Sample ID", default="", max_length=50)
@@ -251,7 +338,7 @@ class SaltSample(models.Model):
     comments = models.TextField(verbose_name="Comments", blank=True, null=True)
 
 
-class ChlSample(models.Model):
+class ChlSample(Sample):
     bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="chl_data", on_delete=models.CASCADE)
     sample_order = models.IntegerField(verbose_name="Sample Order")
     chl = models.FloatField(verbose_name="CHL")

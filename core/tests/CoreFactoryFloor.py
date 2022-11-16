@@ -82,7 +82,7 @@ class InstrumentFactory(DjangoModelFactory):
 
     event = factory.SubFactory(EventFactory)
     name = factory.lazy_attribute(lambda o: faker.name())
-    instrument_type = factory.lazy_attribute(lambda o: faker.random_int(1, len(models.InstrumentType.choices)))
+    instrument_type = factory.lazy_attribute(lambda o: faker.enum(models.InstrumentType))
 
 
 class CTDEventFactory(EventFactory):
@@ -97,6 +97,29 @@ class CTDEventFactory(EventFactory):
         deployed = ActionFactory(file=file, event=instance, action_type=models.ActionType.deployed.value)
         bottom = ActionFactory(file=file, event=instance, action_type=models.ActionType.bottom.value)
         recovered = ActionFactory(file=file, event=instance, action_type=models.ActionType.recovered.value)
+
+
+class RingnetEventFactory(EventFactory):
+    sample_id = factory.lazy_attribute(lambda o: (495000 + faker.random_number(digits=3)))
+
+    @classmethod
+    def _after_postgeneration(cls, instance, create, results=None):
+        file = LogFileFactory()
+
+        instrument = InstrumentFactory(event=instance, name="RingNet",
+                                       instrument_type=models.InstrumentType.ringnet.value)
+
+        deployed = ActionFactory(file=file, event=instance, action_type=models.ActionType.deployed.value)
+        bottom = ActionFactory(file=file, event=instance, action_type=models.ActionType.bottom.value)
+        recovered = ActionFactory(file=file, event=instance, action_type=models.ActionType.recovered.value)
+
+
+class RingnetAttachmentFactory(DjangoModelFactory):
+    class Meta:
+        model = models.Attachments
+
+    instrument = factory.SubFactory(RingnetEventFactory)
+    name = factory.lazy_attribute(lambda o: faker.random_choices(['202um', '76um']))
 
 
 class BottleFactory(DjangoModelFactory):

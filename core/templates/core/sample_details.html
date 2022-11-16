@@ -1,73 +1,36 @@
-{% extends "base.html" %}
-
-{% block extra_style %}
-    {{ block.super }}
-    <style>
-        .vertical-scrollbar {
-            position: relative;
-            height: 400px;
-            overflow: auto;
-        }
-
-        .horizontal-scrollbar {
-            position: relative;
-            overflow: auto;
-        }
-
-        .table-wrapper-scroll-y {
-            display: block;
-        }
-
-        .table-wrapper-scroll-y thead {
-            position: sticky;
-            top: 0px;
-            background: white;
-        }
-
-        .table-wrapper-scroll-x {
-            display: block;
-        }
-
-        .table-wrapper-scroll-x th:first-child {
-            position: sticky;
-            left: 0px;
-            background: white;
-            border-bottom-color: black;
-            border-bottom-width: 0.25em;
-        }
-
-        .selectedBg {
-            background: #8fd19e !important;
-        }
-
-    </style>
-{% endblock %}
+{% extends "core/core_details_template.html" %}
+{% load static %}
 
 {% block title %}
     {{ block.super }}
     <span class="col-3">
         <a class="btn btn-primary" href="{% url 'core:event_details' object.id %}">Events</a>
         <a class="btn btn-primary" href="{% url 'core:ctd_details' object.id %}">CTD</a>
-        <a class="btn btn-warning" href="{% url 'core:event_summary_report' object.id %}">Elog Summary</a>
     </span>
 {% endblock %}
 
 {% block content %}
     <ul class="nav nav-tabs" id="samples" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="oxy-tab" data-bs-toggle="tab" data-bs-target="#oxy-tab-pane" type="button" role="tab" aria-controls="oxy-tab-pane" aria-selected="true">Oxygen</button>
+            <button class="nav-link active" id="oxy-tab" data-bs-toggle="tab" data-bs-target="#oxy-tab-pane"
+                    type="button" role="tab" aria-controls="oxy-tab-pane" aria-selected="true">Oxygen
+            </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="salt-tab" data-bs-toggle="tab" data-bs-target="#salt-tab-pane" type="button" role="tab" aria-controls="salt-tab-pane" aria-selected="false">Salts</button>
+            <button class="nav-link" id="salt-tab" data-bs-toggle="tab" data-bs-target="#salt-tab-pane" type="button"
+                    role="tab" aria-controls="salt-tab-pane" aria-selected="false">Salts
+            </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="chl-tab" data-bs-toggle="tab" data-bs-target="#chl-tab-pane" type="button" role="tab" aria-controls="chl-tab-pane" aria-selected="false">CHL</button>
+            <button class="nav-link" id="chl-tab" data-bs-toggle="tab" data-bs-target="#chl-tab-pane" type="button"
+                    role="tab" aria-controls="chl-tab-pane" aria-selected="false">CHL
+            </button>
         </li>
     </ul>
     <div id="app" class="row mt-2">
 
         <input id="chl-file" type="file" @change="load_chl" accept=".xlsx,.csv"
-           style="display: none" class="mb-2"/>
+               style="display: none" class="mb-2"/>
 
         <input id="oxy-file" type="file" @change="load_oxygen" accept=".xlsx;.csv"
                style="display: none" class="mb-2"/>
@@ -78,29 +41,35 @@
 
         <div class="row">
             <div class="tab-content col" id="sample-content">
-                <div class="tab-pane fade show active" id="oxy-tab-pane" role="tabpanel" aria-labelledby="oxy-tab" tabindex="0">
+                <div class="tab-pane fade show active" id="oxy-tab-pane" role="tabpanel" aria-labelledby="oxy-tab"
+                     tabindex="0">
                     <div class="row">
                         <div class="col">
                             <span class="btn btn-primary p-2">
                                 <label for="oxy-file" classs="btn btn-primary load-button">
                                     Load Oxygen
                                 </label>
+                                <span v-if="loading_oxy" class="loading">
+                                    <span class="spinner-border" style="width: 1rem; height: 1rem;" role="status">
+                                        <span class="sr-only"></span>
+                                    </span>
+                                </span>
                             </span>
                             <div class="table-wrapper-scroll-y vertical-scrollbar">
                                 <table class="table table-striped table-hover table-sm sortable">
                                     <thead>
-                                        <tr>
-                                            <th>Bottle ID</th>
-                                            <th>Winkler 1</th>
-                                            <th>Winkler 2</th>
-                                        </tr>
+                                    <tr>
+                                        <th>Bottle ID</th>
+                                        <th>Winkler 1</th>
+                                        <th>Winkler 2</th>
+                                    </tr>
                                     </thead>
                                     <tbody>
-                                        <tr v-for="oxy in oxygen_samples">
-                                            <td>${ oxy.bottle }</td>
-                                            <td>${ oxy.winkler_1 }</td>
-                                            <td>${ oxy.winkler_2 }</td>
-                                        </tr>
+                                    <tr v-for="oxy in oxygen_samples">
+                                        <td>${ oxy.bottle }</td>
+                                        <td>${ oxy.winkler_1 }</td>
+                                        <td>${ oxy.winkler_2 }</td>
+                                    </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -114,26 +83,31 @@
                                 <label for="salt-file" classs="btn btn-primary load-button">
                                     Load Salt
                                 </label>
+                                <span v-if="loading_salt" class="loading">
+                                    <span class="spinner-border" style="width: 1rem; height: 1rem;" role="status">
+                                        <span class="sr-only"></span>
+                                    </span>
+                                </span>
                             </span>
                             <div class="table-wrapper-scroll-y vertical-scrollbar">
                                 <table class="table table-striped table-hover table-sm sortable">
                                     <thead>
-                                        <tr>
-                                            <th>Bottle ID</th>
-                                            <th>Sample Date</th>
-                                            <th>Sample Label</th>
-                                            <th>Calculated Salinity</th>
-                                            <th>Comments</th>
-                                        </tr>
+                                    <tr>
+                                        <th>Bottle ID</th>
+                                        <th>Sample Date</th>
+                                        <th>Sample Label</th>
+                                        <th>Calculated Salinity</th>
+                                        <th>Comments</th>
+                                    </tr>
                                     </thead>
                                     <tbody>
-                                        <tr v-for="sample in salt_samples">
-                                            <td>${ sample.bottle }</td>
-                                            <td>${ sample.sample_date }</td>
-                                            <td>${ sample.sample_id }</td>
-                                            <td>${ sample.calculated_salinity }</td>
-                                            <td>${ sample.comments }</td>
-                                        </tr>
+                                    <tr v-for="sample in salt_samples">
+                                        <td>${ sample.bottle }</td>
+                                        <td>${ sample.sample_date }</td>
+                                        <td>${ sample.sample_id }</td>
+                                        <td>${ sample.calculated_salinity }</td>
+                                        <td>${ sample.comments }</td>
+                                    </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -147,22 +121,27 @@
                                 <label for="chl-file" classs="btn btn-primary load-button">
                                     Load CHL
                                 </label>
+                                <span v-if="loading_chl" class="loading">
+                                    <span class="spinner-border" style="width: 1rem; height: 1rem;" role="status">
+                                        <span class="sr-only"></span>
+                                    </span>
+                                </span>
                             </span>
                             <div class="table-wrapper-scroll-y vertical-scrollbar">
                                 <table class="table table-striped table-hover table-sm sortable">
                                     <thead>
-                                        <tr>
-                                            <th>Bottle ID</th>
-                                            <th>mean chl</th>
-                                            <th>mean phae</th>
-                                        </tr>
+                                    <tr>
+                                        <th>Bottle ID</th>
+                                        <th>mean chl</th>
+                                        <th>mean phae</th>
+                                    </tr>
                                     </thead>
                                     <tbody>
-                                        <tr v-for="sample in chl_samples">
-                                            <td>${ sample.bottle }</td>
-                                            <td>${ sample.mean_chl }</td>
-                                            <td>${ sample.mean_phae }</td>
-                                        </tr>
+                                    <tr v-for="sample in chl_samples">
+                                        <td>${ sample.bottle }</td>
+                                        <td>${ sample.mean_chl }</td>
+                                        <td>${ sample.mean_phae }</td>
+                                    </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -176,82 +155,99 @@
 
 {% block body_js %}
     <script>
-    var app = new Vue({
-        el: '#app',
-        delimiters: ["${", "}"],
-        data: {
-            filesToUpload: null,
-            variable_headers: null,
-            interval_id: null,
+        var app = new Vue({
+            el: '#app',
+            delimiters: ["${", "}"],
+            data: {
+                filesToUpload: null,
+                variable_headers: null,
+                interval_id: null,
 
-            oxygen_samples: [],
-            salt_samples: [],
-            chl_samples: []
-        },
-        mounted: function() {
-            this.get_oxygen();
-            this.get_salt();
-            this.get_chl();
-        },
-        methods: {
-            load_oxygen(event) {
-                this.load_file(event, 'oxy');
+                loading_oxy: false,
+                loading_salt: false,
+                loading_chl: false,
+
+                oxygen_samples: [],
+                salt_samples: [],
+                chl_samples: []
+            },
+            mounted: function () {
                 this.get_oxygen();
-            },
-            load_salt(event) {
-                this.load_file(event, 'salt');
                 this.get_salt();
-            },
-            load_chl(event) {
-                this.load_file(event, 'chl');
                 this.get_chl();
             },
-            load_file(event, type=null) {
-                this.filesToUpload = event.target.files;
+            methods: {
+                load_oxygen(event) {
+                    this.loading_oxy = true;
+                    this.load_file(event, 'oxy');
+                },
+                load_salt(event) {
+                    this.loading_salt = true;
+                    this.load_file(event, 'salt');
+                },
+                load_chl(event) {
+                    this.loading_chl = true;
+                    this.load_file(event, 'chl');
+                },
+                load_file(event, type = null) {
+                    this.filesToUpload = event.target.files;
 
-                let endpoint = "{% url 'core:ajax_load_samples' object.id %}" + ((type!=null)?"?type="+type:"");
-                // Send the selected files to the Python side to be loaded
-                filesApiService(endpoint, this.filesToUpload).then(response => {
-                    if(response!==undefined) {
-                        if(response['errors'] && response['errors'].length > 0) {
-                            msg = "Errors\n\n"
-                            for (let i = 0; i < response['errors'].length; i++) {
-                                err = response['errors'][i];
-                                msg += err.msg + ": " + err.trace + "\n\n";
+                    let endpoint = "{% url 'core:ajax_load_samples' object.id %}" + ((type != null) ? "?type=" + type : "");
+                    // Send the selected files to the Python side to be loaded
+                    filesApiService(endpoint, this.filesToUpload).then(response => {
+                        if (response !== undefined) {
+                            if (response['errors'] && response['errors'].length > 0) {
+                                msg = "Errors\n\n"
+                                for (let i = 0; i < response['errors'].length; i++) {
+                                    err = response['errors'][i];
+                                    msg += err.msg + ": " + err.trace + "\n\n";
+                                }
+                                alert(msg);
                             }
-                            alert(msg);
+                        } else {
+                            alert("Load complete")
                         }
-                    } else {
-                        alert("Load complete")
-                    }
-                }).catch(error => {
-                    console.log('something went wrong');
-                });
-
-                // this.interval_id = setInterval(this.get_load_status, 2000);
-            },
-            get_oxygen() {
-                endpoint = "{% url 'core-api:oxygen-list' %}?mission_id={{ object.id }}";
-                apiService(endpoint, "GET").then(response => {
-                    this.oxygen_samples = response;
-                });
-            },
-            get_salt() {
-                endpoint = "{% url 'core-api:salt-list' %}?mission_id={{ object.id }}";
-                apiService(endpoint, "GET").then(response => {
-                    this.salt_samples = response;
-                });
-            },
-            get_chl() {
-                endpoint = "{% url 'core-api:chl-list' %}?mission_id={{ object.id }}";
-                apiService(endpoint, "GET").then(response => {
-                    this.chl_samples = response.filter(chl => {
-                        return chl.sample_order==1;
+                    }).catch(error => {
+                        console.log('something went wrong');
+                    }).finally(function() {
+                        if(type === 'oxy') {
+                            app.get_oxygen();
+                        } else if(type === 'salt') {
+                            app.get_salt();
+                        } else if(type === 'chl') {
+                            app.get_chl();
+                        }
                     });
-                });
-            }
-        }
-    });
 
+                    // this.interval_id = setInterval(this.get_load_status, 2000);
+                },
+                get_oxygen() {
+                    let endpoint = "{% url 'core-api:oxygen-list' %}?mission_id={{ object.id }}";
+                    apiService(endpoint, "GET").then(response => {
+                        this.oxygen_samples = response;
+                        this.$forceUpdate();
+                        app.loading_oxy = false;
+                    });
+                },
+                get_salt() {
+                    let endpoint = "{% url 'core-api:salt-list' %}?mission_id={{ object.id }}";
+                    apiService(endpoint, "GET").then(response => {
+                        this.salt_samples = response;
+                        this.$forceUpdate();
+                        app.loading_salt = false;
+                    });
+                },
+                get_chl() {
+                    let endpoint = "{% url 'core-api:chl-list' %}?mission_id={{ object.id }}";
+                    apiService(endpoint, "GET").then(response => {
+                        this.chl_samples = response.filter(chl => {
+                            return chl.sample_order === 1;
+                        });
+                        this.$forceUpdate();
+                        app.loading_chl = false;
+                    });
+                }
+            }
+        });
     </script>
 {% endblock %}

@@ -1,59 +1,59 @@
-{% extends "base.html" %}
-
-{% block extra_style %}
-    {{ block.super }}
-    <style>
-        .vertical-scrollbar {
-            position: relative;
-            height: 400px;
-            overflow: auto;
-        }
-
-        .horizontal-scrollbar {
-            position: relative;
-            overflow: auto;
-        }
-
-        .table-wrapper-scroll-y {
-            display: block;
-        }
-
-        .table-wrapper-scroll-y thead {
-            position: sticky;
-            top: 0px;
-            background: white;
-        }
-
-        .table-wrapper-scroll-x {
-            display: block;
-        }
-
-        .table-wrapper-scroll-x th:first-child {
-            position: sticky;
-            left: 0px;
-            background: white;
-            border-bottom-color: black;
-            border-bottom-width: 0.25em;
-        }
-
-        .selectedBg {
-            background: #8fd19e !important;
-        }
-
-    </style>
-{% endblock %}
+{% extends "core/core_details_template.html" %}
 
 {% block title %}
     {{ block.super }}
     <span class="col-3">
         <a class="btn btn-primary" href="{% url 'core:ctd_details' object.id %}">CTD</a>
         <a class="btn btn-primary" href="{% url 'core:sample_details' object.id %}">Samples</a>
-        <a class="btn btn-warning" href="{% url 'core:event_summary_report' object.id %}">Elog Summary</a>
-    </span>
+   </span>
 {% endblock %}
 
 {% block content %}
     <div id="app" class="row mt-2">
+        <div class="row mb-2">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <span class="col">
+                            <span class="form-group">
+                                <label for="filter.event_id">Event ID</label>
+                                <input v-model="filter.event_id" @change="apply_filter" id="filter.event_id" />
+                            </span>
+                            <span class="form-group">
+                                <label for="filter.station">Station</label>
+                                <select v-model="filter.station" @change="apply_filter" id="filter.station">
+                                    <option value="" selected></option>
+                                    <option v-for="station in opt_stations" :value="station.name">
+                                        ${station.name}
+                                    </option>
+                                </select>
+                            </span>
+                            <span class="form-group">
+                                <label for="filter.instrument">Instrument</label>
+                                <select v-model="filter.instrument" @change="apply_filter" id="filter.instrument">
+                                    <option value="" selected></option>
+                                    <option v-for="instrument in opt_instruments" :value="instrument.name">
+                                        ${instrument.name}
+                                    </option>
+                                </select>
+                            </span>
+                            <span class="form-group">
+                                <label for="filter.action_type">Actions</label>
+                                <select v-model="filter.action_type" @change="apply_filter" id="filter.action_type">
+                                    <option value="" selected></option>
+                                    <option v-for="action_type in opt_actions" :value="action_type.id">
+                                        ${ action_type.name }
+                                    </option>
+                                </select>
+                            </span>
+                        </span>
+                        <span class="col-1">
+                            <button class="col mr-1 btn btn-warning" v-on:click="clear_filters">Clear</button>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="row">
             <div class="col">
                 <div class="card">
@@ -67,7 +67,7 @@
                                 <tr><th>Event ID</th><th>Station</th><th>Instrument</th></tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="event in events" :key="event.event_id"
+                                    <tr v-for="event in filtered_events" :key="event.event_id"
                                     :class="selected_event && selected_event.event_id==event.event_id?'selectedBg':''"
                                     @click="get_details(event)">
                                         <td>${ event.event_id }</td><td>${ event.station.name }</td><td>${ event.instrument?event.instrument.name:"" }</td>
@@ -84,7 +84,7 @@
                         <div class="card-title">Event Details</div>
                     </div>
                     <div class="card-body">
-                        <div class="table-wrapper-scroll-y vertical-scrollbar">
+                        <div class="vertical-scrollbar">
                             <table class="table table-striped table-sm" v-if="selected_event && selected_event.sample_id">
                                 <thead>
                                 <tr><th>Start Bottle</th><th>End Bottle</th><th>Total Bottles</th></tr>
@@ -124,6 +124,16 @@
                                     </tr>
                                 </tfoot>
                             </table>
+                            <table v-if="selected_event" class="table table-striped table-sm">
+                                <thead>
+                                <tr class="bg-light"><th colspan="2"><span class="h4">Attachments</span></th></tr>
+                                </thead>
+                                <tbody>
+                                <tr v-for="atta in selected_event.instrument.attachments" :key="atta.id">
+                                    <td>${ atta.name }</td>
+                                </tr>
+                                </tbody>
+                            </table>
                             <table class="table table-striped table-sm">
                                 <thead>
                                 <tr class="bg-light"><th colspan="2"><span class="h4">Comments</span></th></tr>
@@ -155,11 +165,7 @@
                                         <label for="file_dir">Elog Directory</label>
                                     </span>
                                     <span class="col">
-                                    <span v-if="loading_files" class="loading">
-                                        <span class="spinner-border" style="width: 1rem; height: 1rem;" role="status">
-                                            <span class="sr-only"></span>
-                                        </span>
-                                    </span>
+                                         <input class="col" id="file_dir" type="text" v-model="elog_dir" v-on:change="update_directory" />
                                     </span>
                                 </div>
                                 <div id="file_dir" class="h3">${ file_dir }</div>
@@ -167,8 +173,13 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div id="load_all">
-                            <button class="btn btn-primary col-2 m-1" v-on:click="load_file()">All</button>
+                        <div id="load_all" class="row">
+                            <span class="col-2">
+                            <button class="btn btn-primary col-12 m-1" v-on:click="load_file()">All</button>
+                            </span>
+                            <span class="col-2">
+                            <button class="btn btn-secondary col-12 m-1" v-on:click="load_file(-1)">Unprocessed</button>
+                            </span>
                         </div>
                         <span v-for="(f, index) in files" :key="f.fid">
                             <button v-on:click="load_file(index)" class="btn col-2 m-1"
@@ -196,23 +207,43 @@
         el: '#app',
         delimiters: ["${", "}"],
         data: {
+            elog_dir: "{{ elog_dir|escapejs }}",
             selected_event: null,
             actions: null,
             events: [],
+            filtered_events: [],
 
             loading_files: false,
             file_dir: "",
             files: [],
 
             to_process: [],
-            processing: []
+            processing: [],
 
+            filter: [],
+
+            opt_stations: [],
+            opt_actions: [],
+            opt_instruments: []
+
+        },
+        created: function () {
+            this.load_filter_options();
         },
         mounted: function() {
             this.get_files();
             this.load_events();
+            this.clear_filters();
         },
         methods: {
+            update_directory() {
+                let endpoint = "{% url 'core:set_dir' object.id %}?dir=" + this.elog_dir + "&type=log";
+                apiService(endpoint, "POST").then(response => {
+                    if(response !== undefined) {
+                        this.get_files();
+                    }
+                });
+            },
             get_files() {
                 let endpoint = "{% url 'core:load_files' %}?file_type=log&mission_id={{ object.id }}";
 
@@ -225,6 +256,14 @@
                             app.files = response['files'];
                             for(let i=0; i<app.files.length; i++){
                                 app.files[i].loading = false;
+                                app.files[i].bg = "btn-success";
+                                if(app.files[i].errors) {
+                                    app.files[i].bg = "btn-warning";
+                                }
+
+                                if(!app.files[i].processed) {
+                                    app.files[i].bg = "btn-secondary";
+                                }
                             }
                         }
                     }
@@ -236,9 +275,20 @@
                         this.load_file(i);
                     }
                     return;
+                } else if(index === -1) {
+                    let filted_files = app.files.filter(function(f) {
+                        return !f.processed;
+                    });
+                    for(let i=0; i<filted_files.length; i++) {
+                        this.load_file(app.files.indexOf(filted_files[i]))
+                    }
+                    return;
                 }
 
-                if(this.processing.length >= 2){
+                // For now I'm using the client to queue up files to load and limiting how many can be sent to the server
+                // Once I've worked out server side threading I'll do this on the server.
+                // processing more than 1 file at a time for elog doesn't add any benifit
+                if(this.processing.length >= 1){
                     this.to_process.push(index);
                     app.files[index].bg = 'btn-light';
                     this.$forceUpdate();
@@ -264,9 +314,11 @@
                                 err = response['errors'][i];
                                 msg += err.msg + ": " + err.trace + "\n\n";
                             }
+                            app.files[index].processed = true;
                             window.alert(msg);
                         } else {
                             app.files[index].bg = "btn-success";
+                            app.files[index].processed = true;
                         }
                         this.load_events();
                     } else {
@@ -347,7 +399,8 @@
 
                 apiService(endpoint, "GET").then(response => {
                     if(response!==undefined) {
-                        app.events = response;
+                        this.filtered_events = this.events = response;
+
                     }
                 });
             },
@@ -358,9 +411,52 @@
 
                 apiService(endpoint, "GET").then(response => {
                     if(response!==undefined) {
-                        app.actions = response;
+                        this.actions = response;
                     }
                 });
+            },
+            load_filter_options() {
+                let endpoint = "{% url 'core-api:station-name-list' %}?mission_id={{ object.id }}";
+                apiService(endpoint, "GET").then(response => {
+                  if(response!==undefined){
+                      this.opt_stations = response
+                  }
+                });
+
+                {% for a in action_types %}this.opt_actions.push( {id: {{ a.id }}, name: "{{ a.name }}" });
+                {% endfor %}
+
+                {% for i in instrument_types %}this.opt_instruments.push( {id: {{ i.id }}, name: "{{ i.name }}" });
+                {% endfor %}
+            },
+            clear_filters() {
+                this.filter.station = "";
+                this.filter.instrument = "";
+                this.filter.action_type = "";
+                this.filter.event_id = "";
+                this.apply_filter();
+            },
+            apply_filter() {
+                this.filtered_events = this.events
+                if( this.filter.event_id ) {
+                    this.filtered_events = this.filtered_events.filter(v => v.event_id == this.filter.event_id);
+                }
+                if( this.filter.station ) {
+                    this.filtered_events = this.filtered_events.filter(v => v.station.name == this.filter.station);
+                }
+                if( this.filter.instrument ) {
+                    this.filtered_events = this.filtered_events.filter(v => v.instrument.name == this.filter.instrument);
+                }
+                if( this.filter.action_type ) {
+                    this.filtered_events = this.filtered_events.filter(v => {
+                        for(let act of v.actions) {
+                            if(act.action_type===this.filter.action_type) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+                }
             }
         }
     });

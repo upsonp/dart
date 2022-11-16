@@ -33,6 +33,14 @@ def isfloat(num):
         return False
 
 
+def isint(num):
+    try:
+        int(num)
+        return True
+    except ValueError:
+        return False
+
+
 def convertDMS_degs(dms_string):
     dms = dms_string.split()
     nsew = dms[2].upper()  # north, south, east, west
@@ -41,12 +49,24 @@ def convertDMS_degs(dms_string):
     return degs
 
 
+def convertDegs_DMS(dd):
+    d = int(dd)
+    m = float((dd-d)*60.0)
+
+    return [d, m]
+
+
 def get_files(request):
     type = models.FileType[request.GET['file_type'].lower()] if 'file_type' in request.GET else None
     mission = request.GET['mission_id'] if 'mission_id' in request.GET else None
 
     files = []
-    log_dir = models.DataFileDirectory.objects.get(mission_id=mission, file_types__file_type=type.value)
+    t_log_dir = models.DataFileDirectory.objects.filter(mission_id=mission, file_types__file_type=type.value)
+    if t_log_dir:
+        log_dir = t_log_dir[0]
+    else:
+        return JsonResponse({'files':[]})
+
     for path in os.listdir(log_dir.directory):
         if os.path.isfile(join(log_dir.directory, path)) and path.lower().endswith(type.label.lower()):
             if len(log_dir.data_files.filter(file=path)) <= 0:
@@ -54,9 +74,11 @@ def get_files(request):
 
     models.DataFile.objects.bulk_create(files)
 
-    return JsonResponse({'files': [{'fid': f.pk, 'file_name': f.file.name, 'processed': f.processed} for f in
+    resp = JsonResponse({'files': [{'fid': f.pk, 'file_name': f.file.name, 'processed': f.processed,
+                                    'errors': len(models.Error.objects.filter(file=f)) > 0} for f in
                                    models.DataFile.objects.filter(directory=log_dir)]})
 
+    return resp
 
 def get_ctd_files(request):
     btl_files = []
@@ -73,7 +95,7 @@ def get_ctd_files(request):
         read_ctd(btl_file)
         btl_files.append(btl_file)
 
-        errors = models.LogFileError.objects.filter(file=btl_file)
+        errors = models.Error.objects.filter(file=btl_file)
         if len(errors) > 0:
             return JsonResponse({'errors': [{"pk": e.pk, "line": e.line, "msg": e.message, "trace": e.stack_trace}
                                             for e in errors]})
@@ -103,7 +125,7 @@ def process_elog(request):
 
         validations.validate_events(log_file)
 
-        errors = models.LogFileError.objects.filter(file=log_file)
+        errors = models.Error.objects.filter(file=log_file)
         if len(errors) > 0:
             return JsonResponse({'errors': [{"pk": e.pk, "line": e.line, "msg": e.message, "trace": e.stack_trace}
                                             for e in errors]})
@@ -153,6 +175,7 @@ def _load_buffer(log_file, buffer, mid_obj):
 
             station_name = buffer.pop('Station')
             instrument = buffer.pop('Instrument')
+            att_str = buffer.pop('Attached')
 
             sample_id = buffer.pop('Sample ID')
             end_sample_id = buffer.pop('End_Sample_ID')
@@ -173,6 +196,14 @@ def _load_buffer(log_file, buffer, mid_obj):
 
                 instr = models.Instrument(event=event, name=instrument, instrument_type=inst_type)
                 instr.save()
+
+                atts = att_str.split(" | ")
+                attachments = []
+                for a in atts:
+                    if a.strip() != '':
+                        attachments.append(models.Attachments(instrument=instr, name=a))
+
+                models.Attachments.objects.bulk_create(attachments)
             else:
                 event = models.Event.objects.get(mission=mission, event_id=event)
 
@@ -203,13 +234,13 @@ def _load_buffer(log_file, buffer, mid_obj):
 
             models.VariableField.objects.bulk_create(fields)
     except Exception as e:
-        error = models.LogFileError(file=log_file, line=mid_obj, message=f"ERR: {log_file.file.name} "
-                                                                         f"processing $@MID@$: {mid_obj}",
-                                    stack_trace=str(e))
+        error = models.Error(mission=mission, file=log_file, line=mid_obj,
+                             message=f"ERR: {log_file.file.name} processing $@MID@$: {mid_obj}",
+                             stack_trace=str(e))
         error.save()
 
 
-def process_ctd(request):
+def process_ctd(request, mission_id):
     ctd_files = []
     updated = []
     errors = []
@@ -229,7 +260,8 @@ def process_ctd(request):
 
             updated.append(fid)
         except models.Event.DoesNotExist as e:
-            err = models.LogFileError(file=ctd_file, line=-1, message=f"Error Processing file", stack_trace=str(e))
+            err = models.Error(mission_id=mission_id, file=ctd_file, line=-1, message=f"Error Processing file",
+                               stack_trace=str(e))
             err.save()
 
     elif 'did' in request.GET:
@@ -237,7 +269,7 @@ def process_ctd(request):
 
         post_ctd_validation(ctd_files)
 
-    errors = models.LogFileError.objects.filter(file=ctd_file)
+    errors = models.Error.objects.filter(file=ctd_file)
     return JsonResponse({'updated': updated, "errors": [{"pk": e.pk, "line": e.line, "msg": e.message, "trace": e.stack_trace}
                                             for e in errors]})
 
@@ -248,7 +280,7 @@ def read_ctd(ctd_file):
 
 
 def read_btl(btl_file):
-    models.LogFileError.objects.filter(file=btl_file).delete()
+    models.Error.objects.filter(file=btl_file).delete()
 
     data_frame = ctd.from_btl(btl_file.file_path)
     metadata = getattr(data_frame, "_metadata")
@@ -285,19 +317,40 @@ def read_btl(btl_file):
     for c in data_frame.columns:
         col_headers.append(c)
 
-    pop = ['Bottle', 'Date', 'Statistic']
+    pop = ['Bottle', 'Date', 'Statistic', 'Latitude', 'Longitude']
     for h in pop:
         b_idx = col_headers.index(h)
         col_headers.pop(b_idx)
 
     columns = []
     for h in col_headers:
-        c_name = h
-        if len(models.DataColumn.objects.filter(name=c_name)) <= 0:
-            columns.append(models.DataColumn(name=c_name))
+        # I've found that sensor columns usually have a naming convention where its xxx#yyy where the number denotes
+        # the primary (0) sensor and the secondary (1) sensor. However, what follows the number is also relevant
+        # to the sensor. Usually what follows the sensor priority denotes the unit. (i.e Sbeox0ML/L vs. Sbeox0V)
+        c_name = re.split("(\d)", h, 1)
 
-    if len(columns) > 0:
-        models.DataColumn.objects.bulk_create(columns)
+        priority = int(c_name[1]) + 1 if len(c_name) > 1 else None
+        units = c_name[2].lower() if len(c_name) > 2 else None
+
+        sensor = models.Sensor.objects.filter(name=c_name[0])
+        if priority:
+            sensor = sensor.filter(priority=priority)
+
+        if units:
+            sensor = sensor.filter(units=units.lower())
+
+        if len(sensor) <= 0:
+
+            sen = models.Sensor(name=c_name[0])
+            sen.sensor_type = models.get_sensor_type(c_name[0])
+
+            if priority:
+                sen.priority = priority  # priorty in a sensor name starts counting at zero
+            if units:
+                sen.units = units
+
+            sen.save()
+
 
     b_mod = []
     for i in range(0, (data_frame.shape[0]), 2):
@@ -314,10 +367,11 @@ def read_btl(btl_file):
         bottle_label = event.sample_id + (bottle_id - 1)
 
         if event.instrument.instrument_type == models.InstrumentType.ctd.value and bottle_label > event.end_sample_id:
-            err = models.LogFileError(file=btl_file, line=-1, message=f"Warning: Bottle ID ({bottle_label}) for event "
-                                                                      f"{event.event_id} is outside the ID range"
-                                                                      f" {event.sample_id} - {event.end_sample_id}",
-                                      stack_trace="")
+            err = models.Error(mission=btl_file.directory.mission, file=btl_file, line=i,
+                               message=f"Warning: Bottle ID ({bottle_label}) for event {event.event_id} is outside the "
+                                       f"ID range {event.sample_id} - {event.end_sample_id}",
+                               stack_trace="",
+                               error_code=models.ErrorType.bad_id)
             err.save()
 
         b_mod.append(models.Bottle(event=event, bottle_id=bottle_label,
@@ -348,7 +402,7 @@ def load_samples(request, pk):
 
     file_names = files.keys()
     for fname in file_names:
-        models.LogError.objects.filter(file_name=fname).delete()
+        models.Error.objects.filter(file_name=fname).delete()
 
         print(f"Load Start: {fname}")
         if type == 'salt':
@@ -364,10 +418,11 @@ def load_samples(request, pk):
 
 def load_oxy(mission_id, stream):
     error = []
+    file_name = str(stream)
     file = None
-    if str(stream).lower().endswith(".csv"):
+    if file_name.lower().endswith(".csv"):
         file = pandas.read_csv(stream, skiprows=9).values
-    elif str(stream).lower().endswith(".dat"):
+    elif file_name.lower().endswith(".dat"):
         file = pandas.read_csv(stream, skiprows=8).values
     else:
         xls_obj = load_workbook(stream, data_only=True)
@@ -375,12 +430,12 @@ def load_oxy(mission_id, stream):
         file = sheet.iter_rows(max_col=15, values_only=True)
 
     # remove existing oxygen samples and re-load from file.
-    models.OxygenSample.objects.filter(bottle__event__mission_id=mission_id).delete()
+    models.OxygenSample.objects.filter(file=file_name, bottle__event__mission_id=mission_id).delete()
 
     row_count = 0
     for row in file:
+        row_count += 1
         try:
-            row_count += 1
             sample = row[0]
             bottle = row[1]
             o2 = row[2]
@@ -406,7 +461,7 @@ def load_oxy(mission_id, stream):
                                                        event__instrument__instrument_type=models.InstrumentType.ctd.value)
 
                     if not models.OxygenSample.objects.filter(bottle=bottle).exists():
-                        oxy = models.OxygenSample(bottle=bottle, winkler_1=o2)
+                        oxy = models.OxygenSample(file=file_name, bottle=bottle, winkler_1=o2)
                         oxy.save()
                     else:
                         oxy = models.OxygenSample.objects.get(bottle=bottle)
@@ -416,12 +471,16 @@ def load_oxy(mission_id, stream):
                 except models.Bottle.DoesNotExist as e:
                     # if the current_id isn't in the samples array a KeyError is thrown, same thing as if we called
                     # models.Sample.objects.get(sample_id=current_id) and a DoesNotExist error was thrown.
-                    err = models.LogError(file_name=str(stream), message=f"Bottle with id {sample_id[0]} Does not exist",
-                                          stack_trace=str(e))
+                    err = models.Error(mission_id=mission_id, file_name=str(stream),
+                                       message=f"Bottle with id {sample_id[0]} Does not exist",
+                                       stack_trace=str(e), line=row_count,
+                                       error_code=models.ErrorType.missing_id)
                     err.save()
                     error.append(err)
         except Exception as e:
-            err = models.LogError(file_name=str(stream), message=f"Unexpected error processing file", stack_trace=str(e))
+            err = models.Error(mission_id=mission_id, file_name=str(stream),
+                               message=f"Unexpected error processing file", stack_trace=str(e),
+                               line=row_count)
             err.save()
             error.append(err)
 
@@ -431,8 +490,10 @@ def load_oxy(mission_id, stream):
 def load_salt(mission_id, stream):
     error = []
 
+    file_name = str(stream)
+
     # remove existing samples and re-load from file.
-    models.SaltSample.objects.filter(bottle__event__mission_id=mission_id).delete()
+    models.SaltSample.objects.filter(file=file_name, bottle__event__mission_id=mission_id).delete()
 
     xls_obj = load_workbook(stream, data_only=True)
 
@@ -443,15 +504,15 @@ def load_salt(mission_id, stream):
 
     samples = []
     for row in sheet.iter_rows(max_col=13, values_only=True):
+        row_count += 1
         try:
-            row_count += 1
             sample_id = row[0]
             bottle_label = row[3]
             date_time = row[4]
             calculated_salinity = row[10]
             comments = row[12]
 
-            if bottle_label and calculated_salinity and isfloat(calculated_salinity):
+            if bottle_label and isint(bottle_label) and calculated_salinity and isfloat(calculated_salinity):
                 try:
                     date_time = datetime.strptime((datetime.strftime(date_time, '%Y-%m-%d %H:%M:%S') + " +00:00"),
                                       '%Y-%m-%d %H:%M:%S %z')
@@ -461,21 +522,22 @@ def load_salt(mission_id, stream):
                                                        event__mission_id=mission_id,
                                                        event__instrument__instrument_type=models.InstrumentType.ctd.value)
 
-                    sample = models.SaltSample(bottle=bottle, sample_id=sample_id,
+                    sample = models.SaltSample(file=file_name, bottle=bottle, sample_id=sample_id,
                                                calculated_salinity=calculated_salinity,
                                                sample_date=date_time, comments=comments)
                     samples.append(sample)
                 except models.Bottle.DoesNotExist as e:
                     # if the current_id isn't in the samples array a KeyError is thrown, same thing as if we called
                     # models.Sample.objects.get(sample_id=current_id) and a DoesNotExist error was thrown.
-                    err = models.LogError(file_name=str(stream),
-                                          message=f"Bottle with id {bottle_label} Does not exist",
-                                          stack_trace=str(e))
+                    err = models.Error(mission_id=mission_id, file_name=file_name,
+                                       message=f"Bottle with id {bottle_label} Does not exist",
+                                       stack_trace=str(e), line=row_count,
+                                       error_code=models.ErrorType.missing_id)
                     err.save()
                     error.append(err)
         except Exception as e:
-            err = models.LogError(file_name=str(stream), message=f"Unexpected error processing file",
-                                  stack_trace=str(e))
+            err = models.Error(mission_id=mission_id, file_name=file_name,
+                               message=f"Unexpected error processing file", stack_trace=str(e), line=row_count)
             err.save()
             error.append(err)
 
@@ -488,8 +550,10 @@ def load_chl(mission_id, stream):
     error = []
     samples = []
 
+    file_name = str(stream)
+
     # remove existing samples and re-load from file.
-    models.ChlSample.objects.filter(bottle__event__mission_id=mission_id).delete()
+    models.ChlSample.objects.filter(file=file_name, bottle__event__mission_id=mission_id).delete()
 
     xls_obj = load_workbook(stream, data_only=True)
 
@@ -498,8 +562,8 @@ def load_chl(mission_id, stream):
     row_count = 0
     cur_sample = None
     for row in sheet.iter_rows(max_col=14, values_only=True):
+        row_count += 1
         try:
-            row_count += 1
             sample = row[0]
             volume = row[1]
             chl = row[8]
@@ -517,23 +581,40 @@ def load_chl(mission_id, stream):
                                                        event__instrument__instrument_type=models.InstrumentType.ctd.value)
 
                     sample_count = 1 if sample else 2
-                    chl_sample = models.ChlSample(bottle=bottle, sample_order=sample_count, chl=chl, phae=phae)
+                    chl_sample = models.ChlSample(file=file_name, bottle=bottle, sample_order=sample_count,
+                                                  chl=chl, phae=phae)
                     samples.append(chl_sample)
                 except models.Bottle.DoesNotExist as e:
                     # if the current_id isn't in the samples array a KeyError is thrown, same thing as if we called
                     # models.Sample.objects.get(sample_id=current_id) and a DoesNotExist error was thrown.
-                    err = models.LogError(file_name=str(stream),
-                                          message=f"Bottle with id {cur_sample} Does not exist",
-                                          stack_trace=str(e))
+                    err = models.Error(mission_id=mission_id, file_name=file_name,
+                                       message=f"Bottle with id {cur_sample} Does not exist",
+                                       stack_trace=str(e), line=row_count,
+                                       error_code=models.ErrorType.missing_id)
                     err.save()
                     error.append(err)
 
         except Exception as e:
-            err = models.LogError(file_name=str(stream), message=f"Unexpected error processing file",
-                                  stack_trace=str(e))
+            err = models.Error(mission_id=mission_id, file_name=file_name,
+                               message=f"Unexpected error processing file",
+                               stack_trace=str(e), line=row_count)
             err.save()
             error.append(err)
 
     models.ChlSample.objects.bulk_create(samples)
 
     return error
+
+
+def set_directory(request, mission):
+    dir = request.GET['dir']
+    f_type = request.GET['type']
+    mission = models.Mission.objects.get(pk=mission)
+
+    dfd = models.DataFileDirectory(mission=mission, directory=dir)
+    dfd.save()
+
+    dfd_type = models.DataFileDirectoryType(directory=dfd, file_type=models.FileType[f_type].value)
+    dfd_type.save()
+
+    return JsonResponse({})
