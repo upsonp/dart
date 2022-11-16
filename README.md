@@ -12,10 +12,6 @@ Download (Pycharm)[https://www.jetbrains.com/pycharm/] and use the terminal to c
 `python manage.py migrate`  
 `daphne dart.asgi:application`  
   
-open web browser, navigate to `localhost:8000`
-
-to stop the server press `ctrl+c`
-
 # Command Line Setup
 
 Open commandline, navigate to parent directory where applciation will be deployed.  
@@ -26,3 +22,8 @@ Open commandline, navigate to parent directory where applciation will be deploye
 `python -m pip install -r requirements.txt`  
 `python manage.py migrate`  
 `daphne dart.asgi:application`
+
+# Accessing DART
+open web browser, navigate to `localhost:8000`
+
+to stop the server press `ctrl+c` with the terminal window selected
