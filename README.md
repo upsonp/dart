@@ -1,3 +1,10 @@
+# Requirements
+* Python 3.10+
+* Git
+
+# Recommendation
+My recommendation is to download (Pycharm)[https://www.jetbrains.com/pycharm/] and use the terminal to clone and work with the application. Pycharm comes with the basic tools required to get started.
+
 # Setup
 
 `git clone https://github.com/upsonp/dart.git`  
