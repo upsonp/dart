@@ -8,7 +8,9 @@ Download (Pycharm)[https://www.jetbrains.com/pycharm/] and use the terminal to c
 # Pycharm Setup
 
 * Open a terminal view  
+* Navigate to parent directory where applciation will be deployed 
 * `git clone https://github.com/upsonp/dart.git`  
+* Open the dart directroy as a new project
 * `python -m pip install -r requirements.txt`  
 * `python manage.py migrate`  
 * `daphne dart.asgi:application`  
