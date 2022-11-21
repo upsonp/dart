@@ -25,6 +25,10 @@ Download (Pycharm)[https://www.jetbrains.com/pycharm/] and use the terminal to c
 * `python -m pip install -r requirements.txt`  
 * `python manage.py migrate`
 
+# Settings
+Django uses a secret key it uses to keep track of sessions, when in production this key should be private. As such, DART has a file called the `settings_local_default.py` file in the `dart/dart/` directory. The file needs to be copyed and renamed `settings_local.py` and the secret key set.
+
+
 # Start the server
 * `daphne dart.asgi:application`
 
