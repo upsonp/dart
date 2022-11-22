@@ -118,8 +118,8 @@ def process_elog(request):
         log_file = log_dir.data_files.get(pk=fid)
         log_file.log_errors.all().delete()
 
-        events = models.Event.objects.filter(actions__file=log_file).distinct()
-        events.delete()
+        # events = models.Event.objects.filter(actions__file=log_file).distinct()
+        # events.delete()
 
         read_elog(log_file)
 
@@ -161,12 +161,29 @@ def read_elog(log_file):
     print("Done")
 
 
+def _get_instrument(instrument_name):
+    try:
+        inst_type = models.InstrumentType[instrument_name.lower()].value
+    except KeyError:
+        # if an unknown type is recieved consider this an 'other' event
+        inst_type = models.InstrumentType['other'].value
+
+    instr = models.Instrument.objects.filter(name=instrument_name, instrument_type=inst_type)
+    if not instr:
+        instr = models.Instrument(name=instrument_name, instrument_type=inst_type)
+        instr.save()
+    else:
+        instr = instr[0]
+
+    return instr
+
+
 def _load_buffer(log_file, buffer, mid_obj):
 
     mission = log_file.directory.mission
     try:
         if len(buffer.items()) > 0:
-            event = buffer.pop("Event")
+            event_id = buffer.pop("Event")
 
             # This date is the date of the last elog update and isn't accurate for recording purpose
             buffer.pop('Date')
@@ -178,34 +195,58 @@ def _load_buffer(log_file, buffer, mid_obj):
             att_str = buffer.pop('Attached')
 
             sample_id = buffer.pop('Sample ID')
-            end_sample_id = buffer.pop('End_Sample_ID')
+            sample_id = sample_id if sample_id != "" else None
 
-            if len(models.Event.objects.filter(mission=mission, event_id=event)) <= 0:
+            end_sample_id = buffer.pop('End_Sample_ID')
+            end_sample_id = end_sample_id if end_sample_id != "" else None
+
+            if len(models.Event.objects.filter(mission=mission, event_id=event_id)) <= 0:
                 sdb = models.get_station(name=station_name)
 
-                event = models.Event(mission=mission, event_id=event, station=sdb,
-                                     sample_id=sample_id if sample_id != "" else None,
-                                     end_sample_id=end_sample_id if end_sample_id != "" else None)
+                instr = _get_instrument(instrument_name=instrument)
+
+                event = models.Event(mission=mission, event_id=event_id, station=sdb, instrument=instr,
+                                     sample_id=sample_id, end_sample_id=end_sample_id)
+
                 event.save()
 
-                try:
-                    inst_type = models.InstrumentType[instrument.lower()].value
-                except KeyError:
-                    # if an unknown type is recieved consider this an 'other' event
-                    inst_type = models.InstrumentType['other'].value
-
-                instr = models.Instrument(event=event, name=instrument, instrument_type=inst_type)
-                instr.save()
-
-                atts = att_str.split(" | ")
-                attachments = []
-                for a in atts:
-                    if a.strip() != '':
-                        attachments.append(models.Attachments(instrument=instr, name=a))
-
-                models.Attachments.objects.bulk_create(attachments)
             else:
-                event = models.Event.objects.get(mission=mission, event_id=event)
+                # determine if something about the event has changed, if so we'll update the basics
+                update = False
+                event = models.Event.objects.get(mission=mission, event_id=event_id)
+
+                sdb = models.get_station(name=station_name)
+                if event.station != sdb:
+                    event.station = sdb
+                    update = True
+
+                instr = _get_instrument(instrument_name=instrument)
+                if event.instrument != instr:
+                    event.instrument = instr
+                    update = True
+
+                if event.sample_id != sample_id:
+                    event.sample_id = sample_id
+                    update = True
+
+                if event.end_sample_id != end_sample_id:
+                    event.end_sample_id = end_sample_id
+                    update = True
+
+                if update:
+                    event.save()
+
+            atts = att_str.split(" | ")
+            instr_sensors = []
+            for a in atts:
+                if a.strip() != '':
+                    if len(models.InstrumentSensor.objects.filter(event=event, name=a)) <= 0:
+                        instr_sensors.append(models.InstrumentSensor(event=event, name=a))
+
+            models.InstrumentSensor.objects.bulk_create(instr_sensors)
+
+            # We're about to recreate the actions for this event so remove all existing actions.
+            event.actions.all().delete()
 
             evt_type_t = buffer.pop("Action").lower().replace(' ', '_')
 
@@ -313,6 +354,9 @@ def read_btl(btl_file):
                                      instrument__instrument_type=models.InstrumentType.ctd.value,
                                      event_id=int(event_number))
 
+    # we only want to use rows in the BTL file marked as 'avg'
+    data_frame = data_frame[data_frame['Statistic'] == 'avg']
+
     col_headers = []
     for c in data_frame.columns:
         col_headers.append(c)
@@ -352,43 +396,73 @@ def read_btl(btl_file):
             sen.save()
 
 
-    b_mod = []
-    for i in range(0, (data_frame.shape[0]), 2):
-        bottle_id = data_frame["Bottle"].iloc[i]
-        date = data_frame["Date"].iloc[i]
+    b_create = []
+    b_update = []
+    bottle_date = data_frame[["Bottle", "Date"]]
+    for row in bottle_date.iterrows():
+        bottle_id = row[1]["Bottle"]
+        date = row[1]["Date"]
 
         # assume UTC time if a timezone isn't set
         if not hasattr(date, 'timezone'):
             date = pytz.timezone("UTC").localize(date)
 
-        # remove old bottle data that's being replaced in this event
-        models.Bottle.objects.filter(event=event, bottle_number=bottle_id).delete()
+        if len(models.Bottle.objects.filter(event=event, bottle_number=bottle_id)) <= 0:
+            models.Bottle.objects.filter(event=event, bottle_number=bottle_id).delete()
 
         bottle_label = event.sample_id + (bottle_id - 1)
 
         if event.instrument.instrument_type == models.InstrumentType.ctd.value and bottle_label > event.end_sample_id:
-            err = models.Error(mission=btl_file.directory.mission, file=btl_file, line=i,
+            err = models.Error(mission=btl_file.directory.mission, file=btl_file, line=(metadata["skiprows"]+row[0]),
                                message=f"Warning: Bottle ID ({bottle_label}) for event {event.event_id} is outside the "
                                        f"ID range {event.sample_id} - {event.end_sample_id}",
                                stack_trace="",
                                error_code=models.ErrorType.bad_id)
             err.save()
 
-        b_mod.append(models.Bottle(event=event, bottle_id=bottle_label,
-                                   bottle_number=bottle_id, date_time=date))
+        if len(models.Bottle.objects.filter(event=event, bottle_number=bottle_id)) <= 0:
+            b_create.append(models.Bottle(event=event, bottle_id=bottle_label,
+                                       bottle_number=bottle_id, date_time=date))
+        else:
+            update = False
+            b = models.Bottle.objects.get(event=event, bottle_number=bottle_id)
+            if b.bottle_id != bottle_label:
+                b.bottle_id = bottle_label
+                update = True
 
-    models.Bottle.objects.bulk_create(b_mod)
+            if b.bottle_number != bottle_id:
+                b.bottle_number = bottle_id
+                update = True
+
+            if b.date_time != date:
+                b.date_time = date
+                update = True
+
+            if update:
+                b_update.append(b)
+
+    models.Bottle.objects.bulk_create(b_create)
+    models.Bottle.objects.bulk_update(b_update, fields=['bottle_id', 'bottle_number', 'date_time'])
 
     for c in col_headers:
-        data_column = []
-        column = models.get_data_column_name(c)
-        for i in range(0, data_frame.shape[0], 2):
-            bottle_id = data_frame["Bottle"].iloc[i]
-            d = data_frame[c].iloc[i]
-            bottle = models.Bottle.objects.get(event=event, bottle_number=bottle_id)
-            data_column.append(models.BottleData(bottle=bottle, column=column, value=d))
+        data_column_create = []
+        data_column_update = []
+        sensor = models.get_sensor_name(c)
 
-        models.BottleData.objects.bulk_create(data_column)
+        df = data_frame[["Bottle", c]]
+        for data in df.iterrows():
+            bottle = models.Bottle.objects.get(event=event, bottle_number=data[1]["Bottle"])
+            b_data = bottle.bottle_data.all()
+            if b_data.filter(sensor=sensor):
+                ctd_update = b_data.get(sensor=sensor)
+                if ctd_update.value != data[1][c]:
+                    ctd_update.value = data[1][c]
+                    data_column_update.append(ctd_update)
+            else:
+                data_column_create.append(models.CTDData(bottle=bottle, sensor=sensor, value=data[1][c]))
+
+        models.CTDData.objects.bulk_create(data_column_create)
+        models.CTDData.objects.bulk_update(data_column_update, fields=["value"])
 
 
 def post_ctd_validation(ctd_files):

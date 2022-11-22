@@ -26,8 +26,6 @@ urlpatterns = [
 
     path('report/core/elog_summary/<int:pk>/', reports.report_elog_summary, name="event_summary_report"),
     path('report/core/profile_summary/<int:pk>/', reports.report_profile_summary, name="profile_summary_report"),
-    path('report/core/salt_report/<int:pk>/', reports.report_salt_report, name="salt_report"),
-    path('report/core/oxygen_report/<int:pk>/', reports.report_oxy_report, name="oxygen_report"),
     path('report/core/biosum_report/<int:pk>/', reports.report_biosum_report, name="biosum_report"),
     path('report/core/error_report/<int:pk>/', reports.report_error_report, name="error_report"),
 ]

@@ -43,7 +43,7 @@ def validate_events(log_file):
 
         elif e.instrument.instrument_type == models.InstrumentType.ringnet.value:
 
-            if len(e.instrument.attachments.all()) <= 0:
+            if len(e.attachments.all()) <= 0:
                 err = models.Error(mission=e.mission, file=log_file, file_name=log_file.file,
                                    line=e.actions.all()[0].mid,
                                    message=f"Event {e.event_id} in file {log_file.file.name} does not specify"
@@ -51,7 +51,7 @@ def validate_events(log_file):
                                    error_code=models.ErrorType.missing_information)
                 errors.append(err)
 
-            if '202um' in [a.name for a in e.instrument.attachments.all()]:
+            if '202um' in [a.name for a in e.attachments.all()]:
                 if e.sample_id and len(models.Event.objects.filter(
                         instrument__instrument_type=models.InstrumentType.ctd.value, sample_id=e.sample_id)) <= 0:
                     err = models.Error(mission=e.mission, file=log_file, file_name=log_file.file,
@@ -62,7 +62,7 @@ def validate_events(log_file):
                                        error_code=models.ErrorType.bad_id)
                     errors.append(err)
 
-            if '76um' in [a.name for a in e.instrument.attachments.all()]:
+            if '76um' in [a.name for a in e.attachments.all()]:
                 if e.sample_id and len(models.Event.objects.filter(
                         instrument__instrument_type=models.InstrumentType.ctd.value, end_sample_id=e.sample_id)) <= 0:
                     err = models.Error(mission=e.mission, file=log_file, file_name=log_file.file,

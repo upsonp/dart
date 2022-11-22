@@ -129,7 +129,7 @@
                                 <tr class="bg-light"><th colspan="2"><span class="h4">Attachments</span></th></tr>
                                 </thead>
                                 <tbody>
-                                <tr v-for="atta in selected_event.instrument.attachments" :key="atta.id">
+                                <tr v-for="atta in selected_event.attachments" :key="atta.id">
                                     <td>${ atta.name }</td>
                                 </tr>
                                 </tbody>
@@ -257,12 +257,12 @@
                             for(let i=0; i<app.files.length; i++){
                                 app.files[i].loading = false;
                                 app.files[i].bg = "btn-success";
-                                if(app.files[i].errors) {
-                                    app.files[i].bg = "btn-warning";
-                                }
-
                                 if(!app.files[i].processed) {
                                     app.files[i].bg = "btn-secondary";
+                                }
+
+                                if(app.files[i].errors) {
+                                    app.files[i].bg = "btn-warning";
                                 }
                             }
                         }
@@ -306,6 +306,7 @@
                 apiService(endpoint, "POST").then(response => {
                     app.files[index].loading = false;
                     this.$forceUpdate();
+                    let msg = ""
                     if(response!==undefined) {
                         if(response['errors'] && response['errors'].length > 0) {
                             app.files[index].bg = "btn-warning";
@@ -315,7 +316,6 @@
                                 msg += err.msg + ": " + err.trace + "\n\n";
                             }
                             app.files[index].processed = true;
-                            window.alert(msg);
                         } else {
                             app.files[index].bg = "btn-success";
                             app.files[index].processed = true;
@@ -330,6 +330,10 @@
                     if(this.to_process.length > 0) {
                         let next = this.to_process.shift();
                         this.load_file(next);
+                    }
+
+                    if(msg !== "") {
+                        window.alert(msg);
                     }
                 });
             },

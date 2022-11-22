@@ -17,6 +17,11 @@ router.register(r'chl', views.ChlViewset, basename='chl')
 
 router.register(r'error', views.ErrorViewset, basename='error')
 
+# pandasView
+router.register(r'pd_salt', views.PandaSaltReport, basename='pd_salt')
+router.register(r'pd_oxygen', views.PandaOxygenReport, basename='pd_oxygen')
+router.register(r'pd_chl', views.PandaChlReport, basename='pd_chl')
+
 # I use the following to print URLs when the server starts to get an idea of how to reverse them
 # import pprint
 # pprint.pprint(router.get_urls())

@@ -75,23 +75,23 @@ def generate_event_report(events, row_dic):
 
 def get_variable_data(bottle, column_name):
     try:
-        dc = models.get_data_column_name(column_name)
+        dc = models.get_variable_name(column_name)
     except models.Sensor.DoesNotExist as e:
         print(column_name)
         raise e
 
-    bd = models.BottleData.objects.get(bottle=bottle, column=dc)
+    bd = models.CTDData.objects.get(bottle=bottle, sensor=dc)
     return bd.value if bd else ""
 
 
 def get_variable_type_data(bottle, sensor_type, priority=1, name=None, unit=None):
-    bd = models.BottleData.objects.filter(bottle=bottle, column__sensor_type=sensor_type, column__priority=priority)
+    bd = models.CTDData.objects.filter(bottle=bottle, sensor__sensor_type=sensor_type, column__priority=priority)
 
     if name:
-        bd = bd.filter(column__name__iexact=name)
+        bd = bd.filter(sensor__name__iexact=name)
 
     if unit:
-        bd = bd.filter(column__units__iexact=unit)
+        bd = bd.filter(sensor__units__iexact=unit)
 
     return bd[0].value if bd else ""
 
@@ -245,86 +245,6 @@ def get_profile_summary(mission):
     }
 
     bottles = models.Bottle.objects.filter(event__mission=mission).order_by("event__station__name")
-    return generate_bottle_report(bottles=bottles, row_dic=row_dic)
-
-
-# called from the web browser to download a copy of the report
-def report_salt_report(request, pk):
-    mission = models.Mission.objects.get(id=pk)
-    report = get_salt_report(mission=mission)
-
-    file_name = f"{mission.name}_Salt_Rpt.csv"
-
-    return send_report(report, file_name)
-
-
-# callable from a django shell to create and save the report
-def print_salt_report(mission_id, output_file_location="./"):
-    mission = models.Mission.objects.get(pk=mission_id)
-    report = get_salt_report(mission=mission)
-
-    # this probably should use the mission date
-    file_name = f"{mission.name}_Salt_Rpt.csv"
-
-    print_report(output_file_location=output_file_location, file_name=file_name, report=report)
-
-
-def get_salt_report(mission):
-    row_dic = {
-        "Name": lambda b: b.event.mission.name,
-        "Station": lambda b: b.event.station.name,
-        "Event": lambda b: b.event.event_id,
-        "Sample": lambda b: b.bottle_id,
-        "Pressure": lambda b: get_pressure(b),
-        "temp_ctd_p": lambda b: get_variable_data(b, "T090C"),
-        "temp_ctd_s": lambda b: get_variable_data(b, "T190C"),
-        "cond_ctd_p": lambda b: get_variable_data(b, "C0S/m"),
-        "cond_ctd_s": lambda b: get_variable_data(b, "C1S/m"),
-        "sal_ctd_p": lambda b: get_variable_data(b, "Sal00"),
-        "sal_ctd_s": lambda b: get_variable_data(b, "Sal11"),
-        "sal_rep1": lambda b: get_salinity(b),
-        "sal_rep2": lambda b: ""
-    }
-
-    bottles = models.Bottle.objects.filter(event__mission=mission).order_by("event__event_id")
-    return generate_bottle_report(bottles=bottles, row_dic=row_dic)
-
-
-# called from the web browser to download a copy of the report
-def report_oxy_report(request, pk):
-    mission = models.Mission.objects.get(id=pk)
-    report = get_oxy_report(mission=mission)
-
-    file_name = f"{mission.name}_Oxygen_Rpt.csv"
-
-    return send_report(report, file_name)
-
-
-# callable from a django shell to create and save the report
-def print_oxy_report(mission_id, output_file_location="./"):
-    mission = models.Mission.objects.get(pk=mission_id)
-    report = get_oxy_report(mission=mission)
-
-    # this probably should use the mission date
-    file_name = f"{mission.name}_Oxygen_Rpt.csv"
-
-    print_report(output_file_location=output_file_location, file_name=file_name, report=report)
-
-
-def get_oxy_report(mission):
-    row_dic = {
-        "Name": lambda b: b.event.mission.name,
-        "Station": lambda b: b.event.station.name,
-        "Event": lambda b: b.event.event_id,
-        "Sample": lambda b: b.bottle_id,
-        "Pressure": lambda b: get_pressure(b),
-        "oxy_ctd_p": lambda b: get_variable_data(b, "Sbeox0V"),
-        "oxy_ctd_s": lambda b: get_variable_data(b, "Sbeox1V"),
-        "oxy_w_rep1": lambda b: get_oxygen_winkler(b, 1),
-        "oxy_w_rep2": lambda b: get_oxygen_winkler(b, 2)
-    }
-
-    bottles = models.Bottle.objects.filter(event__mission=mission).order_by("event__event_id")
     return generate_bottle_report(bottles=bottles, row_dic=row_dic)
 
 

@@ -10,14 +10,10 @@ def get_bottle_id(bottle):
 
 
 class InstrumentSerializer(serializers.ModelSerializer):
-    attachments = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Instrument
         fields = '__all__'
-
-    def get_attachments(self, obj):
-        return [{'id': a.pk, 'name': a.name} for a in obj.attachments.all()]
 
 
 class ActionVariableSerializer(serializers.ModelSerializer):
@@ -75,6 +71,7 @@ class StationSerializer(serializers.ModelSerializer):
 
 class EventSerializer(serializers.ModelSerializer):
     instrument = InstrumentSerializer(many=False, read_only=True)
+    attachments = serializers.SerializerMethodField()
     actions = ActionSummarySerializer(many=True, read_only=True)
     station = serializers.SerializerMethodField("get_station_name")
     has_data = serializers.SerializerMethodField("get_has_data")
@@ -89,6 +86,9 @@ class EventSerializer(serializers.ModelSerializer):
     def get_has_data(self, obj):
         return len(models.Bottle.objects.filter(event=obj)) > 0
 
+    def get_attachments(self, obj):
+        return [{'id': a.pk, 'name': a.name} for a in obj.attachments.all()]
+
 
 class MissionReportSerializer(serializers.ModelSerializer):
     events = EventSerializer(many=True, read_only=True)
@@ -102,7 +102,7 @@ class CTDData(serializers.ModelSerializer):
     values = serializers.SerializerMethodField()
 
     class Meta:
-        model = models.BottleData
+        model = models.CTDData
         fields = ['values']
 
     def get_values(self, instance):
@@ -131,38 +131,6 @@ class CTDReportSerializer(serializers.ModelSerializer):
         return [b.bottle_id for b in self.__bottles]
 
 
-class SampleSerializer(serializers.ModelSerializer):
-    class Meta:
-        abstract = True
-
-    def get_bottle(self, instance):
-        return instance.bottle.bottle_id
-
-
-class OxygenSampleSerializer(SampleSerializer):
-    bottle = serializers.SerializerMethodField()
-
-    class Meta:
-        model = models.OxygenSample
-        fields = ['bottle', 'winkler_1', 'winkler_2']
-
-
-class SaltSampleSerializer(SampleSerializer):
-    bottle = serializers.SerializerMethodField()
-
-    class Meta:
-        model = models.SaltSample
-        fields = ['bottle', 'sample_id', 'sample_date', 'calculated_salinity', 'comments']
-
-
-class ChlSampleSerializer(SampleSerializer):
-    bottle = serializers.SerializerMethodField()
-
-    class Meta:
-        model = models.ChlSample
-        fields = ['bottle', 'sample_order', 'chl', 'phae', 'mean_chl', 'mean_phae']
-
-
 class ErrorSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -177,3 +145,128 @@ class MissionErrorSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Mission
         fields = ['id', 'name', 'mission_errors']
+
+
+class BottleReport(serializers.ModelSerializer):
+
+    Name = serializers.SerializerMethodField(method_name='get_name')
+    Station = serializers.SerializerMethodField(method_name='get_station')
+    Event = serializers.SerializerMethodField(method_name='get_event')
+    Sample = serializers.SerializerMethodField(method_name='get_sample')
+    Pressure = serializers.SerializerMethodField(method_name='get_pressure')
+
+    class Meta:
+        model = models.Bottle
+        fields = ['Name', 'Station', 'Event', 'Sample', 'Pressure']
+
+    def get_name(self, instance):
+        return instance.event.mission.name
+
+    def get_station(self, instance):
+        return instance.event.station.name
+
+    def get_event(self, instance):
+        return instance.event.event_id
+
+    def get_sample(self, instance):
+        return instance.bottle_id
+
+    def get_pressure(self, instance):
+        p = instance.get_sensor_data_by_name('prdm', models.SensorType.pressure)
+
+        return p.value
+
+
+class SampleReportSerializer(BottleReport):
+    temp_ctd_p = serializers.SerializerMethodField(method_name="get_temp_ctd_p")
+    temp_ctd_s = serializers.SerializerMethodField(method_name="get_temp_ctd_s")
+    cond_ctd_p = serializers.SerializerMethodField(method_name="get_cond_ctd_p")
+    cond_ctd_s = serializers.SerializerMethodField(method_name="get_cond_ctd_s")
+    sal_ctd_p = serializers.SerializerMethodField(method_name="get_sal_ctd_p")
+    sal_ctd_s = serializers.SerializerMethodField(method_name="get_sal_ctd_s")
+    oxy_ctd_p = serializers.SerializerMethodField(method_name="get_oxy_ctd_p")
+    oxy_ctd_s = serializers.SerializerMethodField(method_name="get_oxy_ctd_s")
+
+    def get_name(self, instance):
+        return super().get_name(instance.bottle)
+
+    def get_station(self, instance):
+        return super().get_station(instance.bottle)
+
+    def get_event(self, instance):
+        return super().get_event(instance.bottle)
+
+    def get_sample(self, instance):
+        return super().get_sample(instance.bottle)
+
+    def get_pressure(self, instance):
+        return super().get_pressure(instance.bottle)
+
+    def get_temp_ctd_p(self, instance):
+        return instance.bottle.get_sensor_data_by_name('t', models.SensorType.temperature, priority=1).value
+
+    def get_temp_ctd_s(self, instance):
+        return instance.bottle.get_sensor_data_by_name('t', models.SensorType.temperature, priority=2).value
+
+    def get_cond_ctd_p(self, instance):
+        return instance.bottle.get_sensor_data_by_name('c', models.SensorType.conductivity, priority=1).value
+
+    def get_cond_ctd_s(self, instance):
+        return instance.bottle.get_sensor_data_by_name('c', models.SensorType.conductivity, priority=2).value
+
+    def get_sal_ctd_p(self, instance):
+        return instance.bottle.get_sensor_data_by_name('sal', models.SensorType.salinity, priority=1).value
+
+    def get_sal_ctd_s(self, instance):
+        return instance.bottle.get_sensor_data_by_name('sal', models.SensorType.salinity, priority=2).value
+
+    def get_oxy_ctd_p(self, instance):
+        return instance.bottle.get_sensor_data_by_unit('v', models.SensorType.oxygen, priority=1).value
+
+    def get_oxy_ctd_s(self, instance):
+        return instance.bottle.get_sensor_data_by_unit('v', models.SensorType.oxygen, priority=2).value
+
+
+class SaltReport(SampleReportSerializer):
+
+    Calculated = serializers.SerializerMethodField(method_name="get_salinity")
+    Sample_Date = serializers.SerializerMethodField(method_name="get_sample_date")
+    Comments = serializers.SerializerMethodField(method_name="get_comments")
+
+    class Meta:
+        model = models.SaltSample
+        fields = ['Name', 'Station', 'Event', 'Sample', 'Pressure', 'temp_ctd_p', 'temp_ctd_s',
+                  'cond_ctd_p', 'cond_ctd_s', 'sal_ctd_p', 'sal_ctd_s', 'Sample_Date', 'Calculated', 'Comments']
+
+    def get_salinity(self, instance):
+        return instance.calculated_salinity
+
+    def get_sample_date(self, instance):
+        return instance.sample_date
+
+    def get_comments(self, instance):
+        return instance.comments
+
+
+class OxygenReport(SampleReportSerializer):
+    oxy_w_rep1 = serializers.SerializerMethodField(method_name='get_oxy_w_rep1')
+    oxy_w_rep2 = serializers.SerializerMethodField(method_name='get_oxy_w_rep2')
+
+    class Meta:
+        model = models.OxygenSample
+        fields = ['Name', 'Station', 'Event', 'Sample', 'Pressure', 'oxy_ctd_p', 'oxy_ctd_s', 'oxy_w_rep1',
+                  'oxy_w_rep2']
+
+    def get_oxy_w_rep1(self, instance):
+        return instance.winkler_1
+
+    def get_oxy_w_rep2(self, instance):
+        return instance.winkler_2
+
+
+class ChlReport(SampleReportSerializer):
+
+    class Meta:
+        model = models.ChlSample
+        fields = ['Name', 'Station', 'Event', 'Sample', 'Pressure', 'sample_order', 'chl', 'phae', 'mean_chl',
+                  'mean_phae']

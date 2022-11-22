@@ -14,18 +14,10 @@
             overflow: auto;
         }
 
-        .table-wrapper-scroll-y {
-            display: block;
-        }
-
         .table-wrapper-scroll-y thead {
             position: sticky;
             top: 0px;
             background: white;
-        }
-
-        .table-wrapper-scroll-x {
-            display: block;
         }
 
         .table-wrapper-scroll-x th:first-child {
@@ -46,20 +38,22 @@
 {% block title %}
     {{ block.super }}
     <span class="col-2">
-        <span class="dropdown">
-          <a class="btn btn-secondary dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <div class="dropdown">
+          <button class="btn btn-secondary dropdown-toggle" role="button" id="dropdownReportMenu" data-bs-toggle="dropdown" aria-expanded="false">
             Downloadable Reports
-          </a>
+          </button>
 
           <ul class="dropdown-menu">
-            <li v-for="report in reports"><a class="dropdown-item" href="{% url 'core:event_summary_report' object.id %}">Elog Summary</a></li>
-            <li v-for="report in reports"><a class="dropdown-item" href="{% url 'core:profile_summary_report' object.id %}">Profile Summary</a></li>
-            <li v-for="report in reports"><a class="dropdown-item" href="{% url 'core:salt_report' object.id %}">Salt Report</a></li>
-            <li v-for="report in reports"><a class="dropdown-item" href="{% url 'core:oxygen_report' object.id %}">Oxygen Report</a></li>
-            <li v-for="report in reports"><a class="dropdown-item" href="{% url 'core:biosum_report' object.id %}">BioSum Report</a></li>
-            <li v-for="report in reports"><a class="dropdown-item" href="{% url 'core:error_report' object.id %}">Error Report</a></li>
+            <li><a class="dropdown-item" href="{% url 'core-api:pd_salt-list' 'csv' %}?mission={{ object.id }}">Panda Salt Report</a></li>
+            <li><a class="dropdown-item" href="{% url 'core-api:pd_oxygen-list' 'csv' %}?mission={{ object.id }}">Panda Oxygen Report</a></li>
+            <li><a class="dropdown-item" href="{% url 'core-api:pd_chl-list' 'csv' %}?mission={{ object.id }}">Panda Chl Report</a></li>
+
+            <li><a class="dropdown-item" href="{% url 'core:event_summary_report' object.id %}">Elog Summary</a></li>
+            <li><a class="dropdown-item" href="{% url 'core:profile_summary_report' object.id %}">Profile Summary</a></li>
+            <li><a class="dropdown-item" href="{% url 'core:biosum_report' object.id %}">BioSum Report</a></li>
+            <li><a class="dropdown-item" href="{% url 'core:error_report' object.id %}">Error Report</a></li>
           </ul>
-        </span>
+        </div>
     </span>
     <span class="col-2">
         <a class="btn btn-warning" href="{% url 'core:error_details' object.id %}">View Errors</a>

@@ -58,11 +58,10 @@ class SensorType(models.IntegerChoices):
     time = 6, "Time"
     conductivity = 7, "Conductivity"
     ph = 8, "Ph"
-    chl = 9, 'Chlorophyll'
+    fluorescence = 9, 'Fluorescence'
     turw = 10, 'CStarAt'
     alt = 11, 'Altimeter'
     par = 12, 'Par'
-    cdom = 13, 'CDOM'
     other = 99, "other"
 
 
@@ -91,7 +90,7 @@ def get_sensor_type(sensor_name):
     elif name == "ph":
         return SensorType.time.value
     elif name == "fleco_afl":
-        return SensorType.chl.value
+        return SensorType.fluorescence.value
     elif name == "cstartat":
         return SensorType.turw.value
     elif name == "altm":
@@ -99,7 +98,7 @@ def get_sensor_type(sensor_name):
     elif name == "par/log":
         return SensorType.par.value
     elif name == "wetcdom":
-        return SensorType.cdom.value
+        return SensorType.fluorescence.value
     else:
         return SensorType.unknown.value
 
@@ -122,7 +121,7 @@ def get_station(name):
     return __get_lookup__(Station, name)
 
 
-def get_data_column_name(name):
+def get_sensor_name(name):
     sensor_vars = re.split("(\d)", name, 1)
     sensor = Sensor.objects.filter(name=sensor_vars[0])
     if len(sensor_vars) > 1:
@@ -163,7 +162,7 @@ class DataFile(models.Model):
                                   on_delete=models.CASCADE)
     file = models.FileField(verbose_name="File")
     file_type = models.IntegerField(verbose_name="File Type", choices=FileType.choices)
-    processed = models.BooleanField(verbose_name="Processed", default=True)
+    processed = models.BooleanField(verbose_name="Processed", default=False)
 
     @property
     def file_path(self):
@@ -195,11 +194,18 @@ class Station(SimpleLookupName):
     pass
 
 
+class Instrument(models.Model):
+    name = models.CharField(verbose_name="Instrument Name", max_length=50)
+    instrument_type = models.IntegerField(verbose_name="Instrument Type", choices=InstrumentType.choices)
+
+
 class Event(models.Model):
     event_id = models.IntegerField(verbose_name="Event ID")
 
     mission = models.ForeignKey(Mission, verbose_name="Mission", related_name="events", on_delete=models.CASCADE)
     station = models.ForeignKey(Station, verbose_name="Station", related_name="events", on_delete=models.CASCADE)
+
+    instrument = models.ForeignKey(Instrument, verbose_name="Instrument", on_delete=models.DO_NOTHING)
 
     sample_id = models.IntegerField(verbose_name="Sample ID", null=True, blank=True)
     end_sample_id = models.IntegerField(verbose_name="End Sample ID", null=True, blank=True)
@@ -232,15 +238,11 @@ class Event(models.Model):
         return f"{self.event_id} - {self.station.name}"
 
 
-class Instrument(models.Model):
-    event = models.OneToOneField(Event, verbose_name="Event", related_name="instrument", on_delete=models.CASCADE)
-    name = models.CharField(verbose_name="Instrument Name", max_length=50)
-    instrument_type = models.IntegerField(verbose_name="Instrument Type", choices=InstrumentType.choices)
-
-
-class Attachments(models.Model):
-    instrument = models.ForeignKey(Instrument, verbose_name="Instrument", related_name="attachments",
-                                   on_delete=models.CASCADE)
+# In reality a sensor is physically attached to an instrument, but depending on a station's depth a sensor might be
+# removed. The Ph sensor for example is only rated to 1,200m, if a station is deeper than that the Ph sensor has to be
+# removed. In which case it makes more 'database' sense to attache the sensor to an event.
+class InstrumentSensor(models.Model):
+    event = models.ForeignKey(Event, verbose_name="Event", related_name="attachments", on_delete=models.CASCADE)
     name = models.CharField(verbose_name="Attachment Name", max_length=50)
 
 
@@ -252,7 +254,7 @@ class Action(models.Model):
     longitude = models.FloatField(verbose_name="Longitude")
 
     # The file this action was loaded from. Events can span different fields
-    file = models.ForeignKey(DataFile, verbose_name="File", related_name="actions", on_delete=models.CASCADE)
+    file = models.ForeignKey(DataFile, verbose_name="File", related_name="actions", on_delete=models.DO_NOTHING)
 
     # mid helps us track issues
     mid = models.IntegerField(verbose_name="$@MID@$")
@@ -281,6 +283,20 @@ class Bottle(models.Model):
     bottle_id = models.IntegerField(verbose_name="Bottle ID")
     bottle_number = models.IntegerField(verbose_name="Bottle Number")
 
+    def get_sensor_data_by_name(self, sensor_name, sensor_type, priority=1):
+        return CTDData.objects.get(
+            sensor__name__iexact=sensor_name,
+            sensor__sensor_type=sensor_type,
+            sensor__priority=priority,
+            bottle=self)
+
+    def get_sensor_data_by_unit(self, unit, sensor_type, priority=1):
+        return CTDData.objects.get(
+            sensor__units__iexact=unit,
+            sensor__sensor_type=sensor_type,
+            sensor__priority=priority,
+            bottle=self)
+
 
 class Sensor(models.Model):
     name = models.TextField(verbose_name="Sensor Name")
@@ -288,7 +304,7 @@ class Sensor(models.Model):
                                       default=SensorType.unknown.value)
     priority = models.IntegerField(verbose_name="Priority", default=1,
                                    help_text="1 = primary sensor, 2 = secondary sensor, 3 = tertiary, etc.")
-    units = models.TextField(verbose_name="Units", blank=True, null=True)
+    units = models.CharField(verbose_name="Units", blank=True, null=True, max_length=10)
 
     def __str__(self):
         return self.name + (f'({self.units})' if self.units else "")
@@ -297,9 +313,9 @@ class Sensor(models.Model):
         unique_together = ['name', 'priority', 'units']
 
 
-class BottleData(models.Model):
+class CTDData(models.Model):
     bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="bottle_data", on_delete=models.CASCADE)
-    column = models.ForeignKey(Sensor, verbose_name="Column Heading", related_name="bottle_data",
+    sensor = models.ForeignKey(Sensor, verbose_name="Column Heading", related_name="bottle_data",
                                on_delete=models.DO_NOTHING)
     value = models.FloatField(verbose_name="Value")
 
@@ -332,7 +348,7 @@ class OxygenSample(Sample):
 
 class SaltSample(Sample):
     bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="salt_data", on_delete=models.CASCADE)
-    sample_date = models.DateTimeField(verbose_name="Sample Date", default=django.utils.timezone.now())
+    sample_date = models.DateTimeField(verbose_name="Sample Date", default=django.utils.timezone.now)
     sample_id = models.CharField(verbose_name="Sample ID", default="", max_length=50)
     calculated_salinity = models.FloatField(verbose_name="Calculated Salinity")
     comments = models.TextField(verbose_name="Comments", blank=True, null=True)

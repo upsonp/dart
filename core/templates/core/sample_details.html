@@ -60,15 +60,17 @@
                                     <thead>
                                     <tr>
                                         <th>Bottle ID</th>
+                                        <th>Pressure</th>
                                         <th>Winkler 1</th>
                                         <th>Winkler 2</th>
                                     </tr>
                                     </thead>
                                     <tbody>
-                                    <tr v-for="oxy in oxygen_samples">
-                                        <td>${ oxy.bottle }</td>
-                                        <td>${ oxy.winkler_1 }</td>
-                                        <td>${ oxy.winkler_2 }</td>
+                                    <tr v-for="sample in oxygen_samples">
+                                        <td>${ sample.Sample }</td>
+                                        <td>${ sample.Pressure }</td>
+                                        <td>${ sample.oxy_w_rep1 }</td>
+                                        <td>${ sample.oxy_w_rep2 }</td>
                                     </tr>
                                     </tbody>
                                 </table>
@@ -94,19 +96,19 @@
                                     <thead>
                                     <tr>
                                         <th>Bottle ID</th>
+                                        <th>Pressure</th>
                                         <th>Sample Date</th>
-                                        <th>Sample Label</th>
                                         <th>Calculated Salinity</th>
                                         <th>Comments</th>
                                     </tr>
                                     </thead>
                                     <tbody>
                                     <tr v-for="sample in salt_samples">
-                                        <td>${ sample.bottle }</td>
-                                        <td>${ sample.sample_date }</td>
-                                        <td>${ sample.sample_id }</td>
-                                        <td>${ sample.calculated_salinity }</td>
-                                        <td>${ sample.comments }</td>
+                                        <td>${ sample.Sample }</td>
+                                        <td>${ sample.Pressure }</td>
+                                        <td>${ sample.Sample_Date }</td>
+                                        <td>${ sample.Calculated }</td>
+                                        <td>${ sample.Comments }</td>
                                     </tr>
                                     </tbody>
                                 </table>
@@ -132,13 +134,15 @@
                                     <thead>
                                     <tr>
                                         <th>Bottle ID</th>
+                                        <th>Pressure</th>
                                         <th>mean chl</th>
                                         <th>mean phae</th>
                                     </tr>
                                     </thead>
                                     <tbody>
                                     <tr v-for="sample in chl_samples">
-                                        <td>${ sample.bottle }</td>
+                                        <td>${ sample.Sample }</td>
+                                        <td>${ sample.Pressure }</td>
                                         <td>${ sample.mean_chl }</td>
                                         <td>${ sample.mean_phae }</td>
                                     </tr>
