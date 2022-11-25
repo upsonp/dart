@@ -282,29 +282,19 @@
             },
             load_file(index) {
                 if(index == null) {
-                    for(let i=0; i<app.files.length; i++) {
-                        this.load_file(i);
-                    }
-                    // reprocess files with errors in case there are dependency errors
-                    this.load_file(-2);
+                    this.files.forEach( f => {this.load_file(this.files.indexOf(f))})
                     return;
                 } else if(index === -1) {
-                    let filted_files = app.files.filter(function(f) {
+                    let filted_files = this.files.filter(f => {
                         return !f.processed;
                     });
-                    for(let i=0; i<filted_files.length; i++) {
-                        this.load_file(app.files.indexOf(filted_files[i]))
-                    }
-                    // reprocess files with errors in case there are dependency errors
-                    this.load_file(-2);
+                    filted_files.forEach( f => {this.load_file(this.files.indexOf(f))})
                     return;
                 } else if(index === -2) {
-                    let filted_files = app.files.filter(function(f) {
+                    let filted_files = this.files.filter(f => {
                         return f.errors;
                     });
-                    for(let i=0; i<filted_files.length; i++) {
-                        this.load_file(app.files.indexOf(filted_files[i]))
-                    }
+                    filted_files.forEach( f => {this.load_file(this.files.indexOf(f))})
                     return;
                 }
 

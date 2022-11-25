@@ -149,96 +149,178 @@ def read_elog(log_file):
     paragraph = re.split('====*\n\n', stream.read().strip())
     t = time.time()
     print(f"start: {(time.time() - t)}")
+    mid_map = {'file': log_file, 'buffer':{}}
     for mid in paragraph:
         # Each variable in a mid object starts with the label followed by a colon followed by the value
         tmp = re.findall('(.*?): *(.*?)\n', mid)
-        print(f"parsed: {(time.time()-t)}")
 
         # easily convert the (label, value) tuples into a dictionary
         buffer = dict(tmp)
-        print(f"dict: {(time.time()-t)}")
 
         # pop off the mid object number used to reference this process if there is an issue processing the mid object
         mid_obj = buffer.pop('$@MID@$')
-        print(f"midi: {(time.time()-t)}")
 
         # process the buffer creating the event objects
-        _load_buffer(log_file, buffer, mid_obj)
-        print(f"buffered: {(time.time()-t)}")
+        mid_map['buffer'][mid_obj] = buffer
+    print(f"load buffer: {(time.time() - t)}")
 
+    mids = mid_map['buffer'].keys()
+    process_stations_instrumnets(log_file, mid_map, mids)
+    print(f"stations/instruments: {(time.time() - t)}")
+
+    process_events(log_file, mid_map, mids)
+    print(f"events: {(time.time() - t)}")
+
+    process_attachments_actions(log_file, mid_map, mids)
+    print(f"attachments/actions: {(time.time() - t)}")
+
+    process_variables(log_file, mid_map, mids)
+    print(f"variables: {(time.time() - t)}")
     print(f"end: {(time.time() - t)}")
-    print("Done")
 
 
-def _load_buffer(log_file, buffer, mid_obj):
-
+def process_stations_instrumnets(log_file, mid_map, mids):
     mission = log_file.directory.mission
-    try:
-        if len(buffer.items()) > 0:
-            event_id = buffer.pop("Event")
+    buff = mid_map['buffer']
 
-            # This date is the date of the last elog update and isn't accurate for recording purpose
-            buffer.pop('Date')
+    e_stations = [s.name for s in models.Station.objects.all()]
+    e_instruments = [i.name for i in models.Instrument.objects.all()]
 
-            time_position = buffer.pop("Time|Position").split(" | ")
+    stations = []
+    instruments = []
+    for m in mids:
+        try:
+            station = buff[m]['Station']
+            instrument = buff[m]['Instrument']
 
-            station_name = buffer.pop('Station')
-            instrument = buffer.pop('Instrument')
-            att_str = buffer.pop('Attached')
+            if station not in e_stations:
+                stations.append(models.Station(name=station))
 
-            sample_id = buffer.pop('Sample ID')
+            if instrument not in e_instruments:
+                try:
+                    inst_type = models.InstrumentType[instrument.lower()].value
+                except KeyError:
+                    # if an unknown type is recieved consider this an 'other' event
+                    inst_type = models.InstrumentType['other'].value
+
+                instruments.append(models.Instrument(name=instrument, instrument_type=inst_type))
+        except Exception as e:
+            error = models.Error(mission=mission, file=log_file, line=m,
+                                 message=f"ERR: {log_file.file.name} processing stations and instruments for $@MID@$: "
+                                         f"{m}", stack_trace=str(e))
+            error.save()
+
+    models.Station.objects.bulk_create(stations)
+    models.Instrument.objects.bulk_create(instruments)
+
+
+def process_events(log_file, mid_map, mids):
+    mission = log_file.directory.mission
+    buf = mid_map['buffer']
+
+    e_events = [e.event_id for e in models.Event.objects.filter(mission=mission)]
+
+    p_events = []
+    c_events = []
+    u_events = {'events': [], 'fields':[]}
+    for m in mids:
+        try:
+            event_id = int(buf[m]["Event"])
+            if event_id in p_events:
+                # if an event has already been processed, don't process it again
+                continue
+
+            p_events.append(event_id)
+
+            # we're done with these objects
+            station_name = buf[m].pop('Station')
+            instrument_name = buf[m].pop('Instrument')
+            sample_id = buf[m].pop('Sample ID')
             sample_id = sample_id if sample_id != "" else None
 
-            end_sample_id = buffer.pop('End_Sample_ID')
+            end_sample_id = buf[m].pop('End_Sample_ID')
             end_sample_id = end_sample_id if end_sample_id != "" else None
 
-            if len(models.Event.objects.filter(mission=mission, event_id=event_id)) <= 0:
-                sdb = models.get_station(name=station_name)
+            station = models.get_station(name=station_name)
+            instrument = models.get_instrument(instrument_name=instrument_name)
 
-                instr = models.get_instrument(instrument_name=instrument)
-
-                event = models.Event(mission=mission, event_id=event_id, station=sdb, instrument=instr,
-                                     sample_id=sample_id, end_sample_id=end_sample_id)
-
-                event.save()
-
+            if event_id not in e_events:
+                c_events.append(models.Event(mission=mission, event_id=event_id, station=station,
+                                             instrument=instrument, sample_id=sample_id, end_sample_id=end_sample_id))
             else:
-                # determine if something about the event has changed, if so we'll update the basics
+                e = models.Event.objects.get(mission=mission, event_id=event_id)
                 update = False
-                event = models.Event.objects.get(mission=mission, event_id=event_id)
-
-                sdb = models.get_station(name=station_name)
-                if event.station != sdb:
-                    event.station = sdb
+                if e.station != station:
+                    e.station = station
+                    if station not in u_events['fields']:
+                        u_events['fields'].append('station')
                     update = True
 
-                instr = models.get_instrument(instrument_name=instrument)
-                if event.instrument != instr:
-                    event.instrument = instr
+                if e.instrument != instrument:
+                    e.instrument = instrument
+                    if instrument not in u_events['fields']:
+                        u_events['fields'].append('instrument')
                     update = True
 
-                if event.sample_id != sample_id:
-                    event.sample_id = sample_id
+                if e.sample_id != sample_id:
+                    e.sample_id = sample_id
+                    if sample_id not in u_events['fields']:
+                        u_events['fields'].append('sample_id')
                     update = True
 
-                if event.end_sample_id != end_sample_id:
-                    event.end_sample_id = end_sample_id
+                if e.end_sample_id != end_sample_id:
+                    e.end_sample_id = end_sample_id
+                    if end_sample_id not in u_events['fields']:
+                        u_events['fields'].append('end_sample_id')
                     update = True
 
                 if update:
-                    event.save()
+                    u_events['events'].append(e)
+        except Exception as e:
+            error = models.Error(mission=mission, file=log_file, line=m,
+                                 message=f"ERR: {log_file.file.name} processing events for $@MID@$: "
+                                         f"{m}", stack_trace=str(e))
+            error.save()
 
-            atts = att_str.split(" | ")
-            instr_sensors = []
-            for a in atts:
-                if a.strip() != '':
-                    if len(models.InstrumentSensor.objects.filter(event=event, name=a)) <= 0:
-                        instr_sensors.append(models.InstrumentSensor(event=event, name=a))
+    models.Event.objects.bulk_create(c_events)
+    if u_events['fields']:
+        models.Event.objects.bulk_update(objs=u_events['events'], fields=u_events['fields'])
 
-            models.InstrumentSensor.objects.bulk_create(instr_sensors)
 
-            evt_type_t = buffer.pop("Action").lower().replace(' ', '_')
+def process_attachments_actions(log_file, mid_map, mids):
+    mission = log_file.directory.mission
+    buf = mid_map['buffer']
 
+    instr_sensors = []
+    c_actions = []
+    u_actions = {'actions':[], 'fields': []}
+    cur_event = None
+    for m in mids:
+        try:
+            # This date is the date of the last elog update and isn't accurate for recording purpose
+            buf[m].pop('Date')
+
+            event_id = buf[m]['Event']
+            event = models.Event.objects.get(mission=mission, event_id=event_id)
+            evt_type_t = buf[m]["Action"].lower().replace(' ', '_')
+
+            att_str = buf[m].pop('Attached')
+            time_position = buf[m].pop("Time|Position").split(" | ")
+            comment = buf[m].pop("Comment")
+
+            if cur_event != event_id:
+                atts = att_str.split(" | ")
+                for a in atts:
+                    if a.strip() != '':
+                        if len(models.InstrumentSensor.objects.filter(event=event, name=a)) <= 0:
+                            instr_sensors.append(models.InstrumentSensor(event=event, name=a))
+        except Exception as e:
+            error = models.Error(mission=mission, file=log_file, line=m,
+                                 message=f"ERR: {log_file.file.name} processing attachments for $@MID@$: "
+                                         f"{m}", stack_trace=str(e))
+            error.save()
+
+        try:
             # this is a 'naive' date time with no time zone. But it should always be in UTC
             time = f"{time_position[1][0:2]}:{time_position[1][2:4]}:{time_position[1][4:6]}"
             date_time = datetime.strptime(f"{time_position[0]} {time} +00:00", '%Y-%m-%d %H:%M:%S %z')
@@ -246,7 +328,80 @@ def _load_buffer(log_file, buffer, mid_obj):
             lat = convertDMS_degs(time_position[2])
             lon = convertDMS_degs(time_position[3])
 
-            comment = buffer.pop("Comment")
+            try:
+                evt_type = models.ActionType[evt_type_t].value
+            except KeyError:
+                # if an unknown type is received consider this an 'other' event
+                evt_type = models.ActionType['other'].value
+
+            # if an event already contains this action, we'll update it
+            if len(event.actions.filter(action_type=evt_type)) > 0:
+                update = False
+
+                if evt_type == models.ActionType.other:
+                    action = event.actions.get(action_type=evt_type, action_type_other=evt_type_t)
+                else:
+                    action = event.actions.get(action_type=evt_type)
+
+                if action.latitude != lat:
+                    action.latitude = lat
+                    if 'latitude' not in u_actions['fields']:
+                        u_actions['fields'].append('latitude')
+                    update = True
+
+                if action.longitude != lon:
+                    action.longitude = lon
+                    if 'longitude' not in u_actions['fields']:
+                        u_actions['fields'].append('longitude')
+                    update = True
+
+                if action.mid != m:
+                    action.mid = m
+                    if 'mid' not in u_actions['fields']:
+                        u_actions['fields'].append('mid')
+                    update = True
+
+                if action.comment != comment:
+                    action.comment = comment
+                    if 'comment' not in u_actions['fields']:
+                        u_actions['fields'].append('comment')
+                    update = True
+
+                if update:
+                    u_actions['actions'].append(action)
+
+            else:
+                action = models.Action(file=log_file, event=event,
+                                       date_time=date_time, latitude=lat, longitude=lon,
+                                       mid=m, action_type=evt_type, comment=comment)
+                if evt_type == models.ActionType.other:
+                    action.action_type_other = evt_type_t
+
+                c_actions.append(action)
+        except Exception as e:
+            error = models.Error(mission=mission, file=log_file, line=m,
+                                 message=f"ERR: {log_file.file.name} processing actions for $@MID@$: "
+                                         f"{m}", stack_trace=str(e))
+            error.save()
+
+        cur_event = event_id
+
+    models.InstrumentSensor.objects.bulk_create(instr_sensors)
+    models.Action.objects.bulk_create(c_actions)
+    if u_actions['fields']:
+        models.Action.objects.bulk_update(objs=u_actions['actions'], fields=u_actions['fields'])
+
+
+def process_variables(log_file, mid_map, mids):
+    mission = log_file.directory.mission
+    buf = mid_map['buffer']
+
+    fields = []
+    for m in mids:
+        try:
+            event_id = buf[m].pop('Event')
+            event = models.Event.objects.get(mission=mission, event_id=event_id)
+            evt_type_t = buf[m].pop("Action").lower().replace(' ', '_')
 
             try:
                 evt_type = models.ActionType[evt_type_t].value
@@ -254,44 +409,21 @@ def _load_buffer(log_file, buffer, mid_obj):
                 # if an unknown type is received consider this an 'other' event
                 evt_type = models.ActionType['other'].value
 
-            if len(event.actions.filter(action_type=evt_type)) > 0:
-                update = False
+            if evt_type == models.ActionType.other:
+                action = event.actions.get(action_type=evt_type, action_type_other=evt_type_t)
+            else:
                 action = event.actions.get(action_type=evt_type)
 
-                if action.latitude != lat:
-                    action.latitude = lat
-                    update = True
+            # models.get_variable_name(name=k) is going to be a bottle neck if a variable doesn't already exist
+            for k, v in buf[m].items():
+                fields.append(models.VariableField(action=action, name=models.get_variable_name(name=k), value=v))
+        except Exception as e:
+            error = models.Error(mission=mission, file=log_file, line=m,
+                                 message=f"ERR: {log_file.file.name} processing variables for $@MID@$: "
+                                         f"{m}", stack_trace=str(e))
+            error.save()
 
-                if action.longitude != lon:
-                    action.longitude = lon
-                    update = True
-
-                if action.mid != mid_obj:
-                    action.mid = mid_obj
-                    update = True
-
-                if action.comment != comment:
-                    action.comment = comment
-                    update = True
-
-                if update:
-                    action.save()
-
-            else:
-                action = models.Action(file=log_file, event=event,
-                                       date_time=date_time, latitude=lat, longitude=lon,
-                                       mid=mid_obj, action_type=evt_type, comment=comment)
-                action.save()
-
-            fields = [models.VariableField(action=action, name=models.get_variable_name(name=k), value=v) for
-                      k, v in buffer.items()]
-
-            models.VariableField.objects.bulk_create(fields)
-    except Exception as e:
-        error = models.Error(mission=mission, file=log_file, line=mid_obj,
-                             message=f"ERR: {log_file.file.name} processing $@MID@$: {mid_obj}",
-                             stack_trace=str(e))
-        error.save()
+    models.VariableField.objects.bulk_create(fields)
 
 
 def process_ctd(request, mission_id):
