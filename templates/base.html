@@ -7,10 +7,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-  {# Bootstrap 5 #}
-  <link rel="stylesheet" href="{% static 'bootstrap-5.0.2-dist/css/bootstrap.min.css' %}?version=1.8.0"/>
   <link rel="shortcut icon" type="image/png" href="{% static '/img/dart.ico' %}"/>
-  <script type="text/javascript" src="{% static 'bootstrap-5.0.2-dist/js/bootstrap.bundle.min.js' %}"></script>
+
+  {# Bootstrap 5 #}
+  <link rel="stylesheet" href="{% static 'bootstrap-5.2.3-dist/css/bootstrap.min.css' %}" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous"/>
+  <script type="text/javascript" src="{% static 'bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js' %}" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
 
   {% block extra_style %}{% endblock %}
 
@@ -30,7 +31,7 @@
     {% endblock %}
     </div>
     <div id="page_title_area" class="row mt-2">
-    {% block title %}{% if page_title %}<span class="h2 col">{{page_title}}</span>{% endif %}{% endblock title %}
+    {% block title %}{% if page_title %}<div class="h2 col">{{page_title}}</div>{% endif %}{% endblock title %}
     </div>
     <div id="page_content_area" class="row mt-2">
     {% block content %}{% endblock content %}

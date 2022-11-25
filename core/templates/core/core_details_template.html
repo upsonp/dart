@@ -24,21 +24,27 @@
             position: sticky;
             left: 0px;
             background: white;
-            border-bottom-color: black;
-            border-bottom-width: 0.25em;
         }
 
         .selectedBg {
             background: #8fd19e !important;
         }
 
+        span.spinner-border {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        input.invisible {
+            display: none;
+        }
     </style>
 {% endblock %}
 
 {% block title %}
     {{ block.super }}
-    <span class="col-2">
-        <div class="dropdown">
+    <div class="col">
+        <span class="dropdown">
           <button class="btn btn-secondary dropdown-toggle" role="button" id="dropdownReportMenu" data-bs-toggle="dropdown" aria-expanded="false">
             Downloadable Reports
           </button>
@@ -53,9 +59,7 @@
             <li><a class="dropdown-item" href="{% url 'core:biosum_report' object.id %}">BioSum Report</a></li>
             <li><a class="dropdown-item" href="{% url 'core:error_report' object.id %}">Error Report</a></li>
           </ul>
-        </div>
-    </span>
-    <span class="col-2">
+        </span>
         <a class="btn btn-warning" href="{% url 'core:error_details' object.id %}">View Errors</a>
-    </span>
+    </div>
 {% endblock %}

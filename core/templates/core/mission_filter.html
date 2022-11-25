@@ -11,7 +11,6 @@
 {% block extra_cols_table %}
     <td></td>
 <td><a class="btn btn-primary" href="{% url 'core:event_details' o.id %}">Event</a></td>
-<td><a class="btn btn-primary" href="{% url 'core:ctd_details' o.id %}">CTD</a></td>
     <td><span></span></td>
 <td><a class="btn btn-danger" onclick="delete_mission({{o.id}})">X</a></td>
 {% endblock %}

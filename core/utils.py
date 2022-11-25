@@ -1,5 +1,6 @@
 import os
 import re
+import threading
 import time
 
 import ctd
@@ -141,41 +142,32 @@ def read_elog(log_file):
     file = join(log_file.directory.directory, log_file.file.name)
     stream = io.StringIO(open(file=file, mode="r").read())
 
+    mission = log_file.directory.mission
+
     # All mid objects start with $@MID@$ and end with a series of equal signs and a blank line.
     # Using regular expressions we'll split the whole stream in to mid objects, then process each object
     paragraph = re.split('====*\n\n', stream.read().strip())
+    t = time.time()
+    print(f"start: {(time.time() - t)}")
     for mid in paragraph:
-
         # Each variable in a mid object starts with the label followed by a colon followed by the value
         tmp = re.findall('(.*?): *(.*?)\n', mid)
+        print(f"parsed: {(time.time()-t)}")
 
         # easily convert the (label, value) tuples into a dictionary
         buffer = dict(tmp)
+        print(f"dict: {(time.time()-t)}")
 
         # pop off the mid object number used to reference this process if there is an issue processing the mid object
         mid_obj = buffer.pop('$@MID@$')
+        print(f"midi: {(time.time()-t)}")
 
         # process the buffer creating the event objects
         _load_buffer(log_file, buffer, mid_obj)
+        print(f"buffered: {(time.time()-t)}")
 
+    print(f"end: {(time.time() - t)}")
     print("Done")
-
-
-def _get_instrument(instrument_name):
-    try:
-        inst_type = models.InstrumentType[instrument_name.lower()].value
-    except KeyError:
-        # if an unknown type is recieved consider this an 'other' event
-        inst_type = models.InstrumentType['other'].value
-
-    instr = models.Instrument.objects.filter(name=instrument_name, instrument_type=inst_type)
-    if not instr:
-        instr = models.Instrument(name=instrument_name, instrument_type=inst_type)
-        instr.save()
-    else:
-        instr = instr[0]
-
-    return instr
 
 
 def _load_buffer(log_file, buffer, mid_obj):
@@ -203,7 +195,7 @@ def _load_buffer(log_file, buffer, mid_obj):
             if len(models.Event.objects.filter(mission=mission, event_id=event_id)) <= 0:
                 sdb = models.get_station(name=station_name)
 
-                instr = _get_instrument(instrument_name=instrument)
+                instr = models.get_instrument(instrument_name=instrument)
 
                 event = models.Event(mission=mission, event_id=event_id, station=sdb, instrument=instr,
                                      sample_id=sample_id, end_sample_id=end_sample_id)
@@ -220,7 +212,7 @@ def _load_buffer(log_file, buffer, mid_obj):
                     event.station = sdb
                     update = True
 
-                instr = _get_instrument(instrument_name=instrument)
+                instr = models.get_instrument(instrument_name=instrument)
                 if event.instrument != instr:
                     event.instrument = instr
                     update = True
@@ -245,9 +237,6 @@ def _load_buffer(log_file, buffer, mid_obj):
 
             models.InstrumentSensor.objects.bulk_create(instr_sensors)
 
-            # We're about to recreate the actions for this event so remove all existing actions.
-            event.actions.all().delete()
-
             evt_type_t = buffer.pop("Action").lower().replace(' ', '_')
 
             # this is a 'naive' date time with no time zone. But it should always be in UTC
@@ -265,10 +254,34 @@ def _load_buffer(log_file, buffer, mid_obj):
                 # if an unknown type is received consider this an 'other' event
                 evt_type = models.ActionType['other'].value
 
-            action = models.Action(file=log_file, event=event,
-                                   date_time=date_time, latitude=lat, longitude=lon,
-                                   mid=mid_obj, action_type=evt_type, comment=comment)
-            action.save()
+            if len(event.actions.filter(action_type=evt_type)) > 0:
+                update = False
+                action = event.actions.get(action_type=evt_type)
+
+                if action.latitude != lat:
+                    action.latitude = lat
+                    update = True
+
+                if action.longitude != lon:
+                    action.longitude = lon
+                    update = True
+
+                if action.mid != mid_obj:
+                    action.mid = mid_obj
+                    update = True
+
+                if action.comment != comment:
+                    action.comment = comment
+                    update = True
+
+                if update:
+                    action.save()
+
+            else:
+                action = models.Action(file=log_file, event=event,
+                                       date_time=date_time, latitude=lat, longitude=lon,
+                                       mid=mid_obj, action_type=evt_type, comment=comment)
+                action.save()
 
             fields = [models.VariableField(action=action, name=models.get_variable_name(name=k), value=v) for
                       k, v in buffer.items()]
@@ -334,21 +347,6 @@ def read_btl(btl_file):
         if 'event_number:' in h.lower():
             h_str = h.split(":")
             event_number = h_str[1].strip()
-        # elif 'cruise:' in h.lower():
-        #     h_str = h.split(":")
-        #     cruise = h_str[1].strip()
-        # elif 'nmea latitude =' in h.lower():
-        #     h_str = h.split("=")
-        #     lat_str = h_str[1].strip()
-        # elif 'nmea longitude =' in h.lower():
-        #     h_str = h.split("=")
-        #     lon_str = h_str[1].strip()
-
-    # tmp_lat = lat_str.split(" ")
-    # lat = round((float(tmp_lat[0]) + float(tmp_lat[1]) / 60) * (-1 if tmp_lat[2] == 'S' else 1), 4)
-    #
-    # tmp_lon = lon_str.split(" ")
-    # long = round((float(tmp_lon[0]) + float(tmp_lon[1]) / 60) * (-1 if tmp_lon[2] == 'W' else 1), 4)
 
     event = models.Event.objects.get(mission=btl_file.directory.mission,
                                      instrument__instrument_type=models.InstrumentType.ctd.value,
@@ -361,10 +359,14 @@ def read_btl(btl_file):
     for c in data_frame.columns:
         col_headers.append(c)
 
-    pop = ['Bottle', 'Date', 'Statistic', 'Latitude', 'Longitude']
+    pop = ['Bottle', 'Bottle_', 'Date', 'Statistic', 'Latitude', 'Longitude']
     for h in pop:
-        b_idx = col_headers.index(h)
-        col_headers.pop(b_idx)
+        try:
+            b_idx = col_headers.index(h)
+            col_headers.pop(b_idx)
+        except ValueError:
+            # if the label doesn'e exists, which might happen in the case of 'Bottle_' a value error is raised
+            pass
 
     columns = []
     for h in col_headers:
@@ -499,14 +501,13 @@ def load_oxy(mission_id, stream):
     elif file_name.lower().endswith(".dat"):
         file = pandas.read_csv(stream, skiprows=8).values
     else:
-        xls_obj = load_workbook(stream, data_only=True)
-        sheet = xls_obj.active
-        file = sheet.iter_rows(max_col=15, values_only=True)
+        file = pandas.read_excel(stream, skiprows=8).values
 
     # remove existing oxygen samples and re-load from file.
     models.OxygenSample.objects.filter(file=file_name, bottle__event__mission_id=mission_id).delete()
 
     row_count = 0
+    oxy_bottles = []
     for row in file:
         row_count += 1
         try:
@@ -534,13 +535,11 @@ def load_oxy(mission_id, stream):
                                                        event__mission_id=mission_id,
                                                        event__instrument__instrument_type=models.InstrumentType.ctd.value)
 
-                    if not models.OxygenSample.objects.filter(bottle=bottle).exists():
+                    if sample_id[1] == '1':
                         oxy = models.OxygenSample(file=file_name, bottle=bottle, winkler_1=o2)
-                        oxy.save()
+                        oxy_bottles.append(oxy)
                     else:
-                        oxy = models.OxygenSample.objects.get(bottle=bottle)
-                        oxy.winkler_2 = o2
-                        oxy.save()
+                        oxy_bottles[-1].winkler_2 = o2
 
                 except models.Bottle.DoesNotExist as e:
                     # if the current_id isn't in the samples array a KeyError is thrown, same thing as if we called
@@ -551,6 +550,7 @@ def load_oxy(mission_id, stream):
                                        error_code=models.ErrorType.missing_id)
                     err.save()
                     error.append(err)
+
         except Exception as e:
             err = models.Error(mission_id=mission_id, file_name=str(stream),
                                message=f"Unexpected error processing file", stack_trace=str(e),
@@ -558,6 +558,7 @@ def load_oxy(mission_id, stream):
             err.save()
             error.append(err)
 
+    models.OxygenSample.objects.bulk_create(oxy_bottles)
     return error
 
 

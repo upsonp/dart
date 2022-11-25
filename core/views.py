@@ -87,25 +87,6 @@ class MissionCreateView(MissionMixin, GenericCreateView):
         success = reverse_lazy("core:event_details", args=(self.object.pk, ))
         return success
 
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        #
-        # data = form.cleaned_data
-        #
-        # dfd = models.DataFileDirectory(mission=self.object, directory=data['elog_dir'])
-        # dfd.save()
-        #
-        # dfd_type = models.DataFileDirectoryType(directory=dfd, file_type=models.FileType.log.value)
-        # dfd_type.save()
-        #
-        # dfd = models.DataFileDirectory(mission=self.object, directory=data['bottle_dir'])
-        # dfd.save()
-        #
-        # dfd_type = models.DataFileDirectoryType(directory=dfd, file_type=models.FileType.btl.value)
-        # dfd_type.save()
-
-        return response
-
 
 class EventDetails(GenericViewMixin, DetailView):
     model = models.Mission
@@ -125,12 +106,12 @@ class EventDetails(GenericViewMixin, DetailView):
         return context
 
 
-class CTDDetails(GenericViewMixin, DetailView):
+class SampleDetails(GenericViewMixin, DetailView):
     model = models.Mission
-    template_name = 'core/ctd_details.html'
+    template_name = 'core/sample_details.html'
 
     def get_page_title(self):
-        return f'{self.object.name} - CTD Details'
+        return f'{self.object.name} - Sample Details'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -139,14 +120,6 @@ class CTDDetails(GenericViewMixin, DetailView):
         context['ctd_dir'] = ctd_dir[0].directory if ctd_dir else ""
 
         return context
-
-
-class SampleDetails(GenericViewMixin, DetailView):
-    model = models.Mission
-    template_name = 'core/sample_details.html'
-
-    def get_page_title(self):
-        return f'{self.object.name} - Sample Details'
 
 
 class ErrorDetails(GenericViewMixin, DetailView):

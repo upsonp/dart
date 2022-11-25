@@ -1,13 +1,18 @@
 from rest_framework import viewsets
-from django.http import FileResponse
-
-from rest_framework import viewsets, renderers
-from rest_framework.decorators import action
 
 from rest_pandas import PandasViewSet
+from django.http import JsonResponse
 
 from .. import models
 from . import serializers
+
+
+# Django, or the database calls, seems to have an issue deleting large numbers of sample ids
+# get_chunks will break a list up into sets of manageable size to be deleted.
+def get_chunks(lst, size):
+    for i in range(0, len(lst), size):
+        yield lst[i:i+size]
+
 
 class MissionReportViewset(viewsets.ModelViewSet):
     queryset = models.Mission.objects.all()
@@ -34,14 +39,14 @@ class EventViewset(viewsets.ModelViewSet):
 
 
 class ActionViewset(viewsets.ModelViewSet):
-    queryset = models.Action.objects.all()
+    queryset = models.Action.objects.all().order_by('date_time')
     serializer_class = serializers.ActionSerializer
 
     def get_queryset(self):
         if "event_id" in self.request.GET:
-            return models.Action.objects.filter(event_id=self.request.GET['event_id'])
+            return models.Action.objects.filter(event_id=self.request.GET['event_id']).order_by('date_time')
 
-        return models.Action.objects.all()
+        return models.Action.objects.all().order_by('date_time')
 
 
 class CTDReport(viewsets.ModelViewSet):
@@ -88,16 +93,38 @@ class GetErrorReport(viewsets.ModelViewSet):
         return models.Error.objects.all()
 
 
-class SaltViewset(viewsets.ModelViewSet):
-    queryset = models.SaltSample.objects.all()
+class SampleViewset(viewsets.ModelViewSet):
 
-    serializer_class = serializers.SaltReport
+    model = None
+
+    def get_model(self):
+        return self.model
 
     def get_queryset(self):
+        queryset = self.get_model().objects.all()
         if 'mission_id' in self.request.GET:
-            return models.SaltSample.objects.filter(bottle__event__mission=self.request.GET['mission_id'])
+            queryset = queryset.filter(bottle__event__mission_id=self.request.GET['mission_id'])
 
-        return models.SaltSample.objects.all()
+        if 'sample_id' in self.request.GET:
+            queryset = queryset.filter(bottle__bottle_id=self.request.GET['sample_id'])
+
+        if 'station' in self.request.GET:
+            queryset = queryset.filter(bottle__event__station__name=self.request.GET['station'])
+
+        return queryset
+
+
+    def destroy(self, request, *args, **kwargs):
+        # if samples are not specifically listed use get_queryset to filter down to what should be deleted
+        sample_set = self.get_queryset()
+        sample_set.delete()
+
+        return JsonResponse({})
+
+
+class SaltViewset(SampleViewset):
+    model = models.SaltSample
+    serializer_class = serializers.SaltReport
 
 
 class PandaSaltReport(SaltViewset, PandasViewSet):
@@ -106,16 +133,9 @@ class PandaSaltReport(SaltViewset, PandasViewSet):
         return f"{models.Mission.objects.get(pk=request.query_params['mission']).name}_Salt_Report"
 
 
-class OxygenViewset(viewsets.ModelViewSet):
-    queryset = models.OxygenSample.objects.all()
-
+class OxygenViewset(SampleViewset):
+    model = models.OxygenSample
     serializer_class = serializers.OxygenReport
-
-    def get_queryset(self):
-        if 'mission_id' in self.request.GET:
-            return models.OxygenSample.objects.filter(bottle__event__mission=self.request.GET['mission_id'])
-
-        return models.OxygenSample.objects.all()
 
 
 class PandaOxygenReport(OxygenViewset, PandasViewSet):
@@ -124,19 +144,25 @@ class PandaOxygenReport(OxygenViewset, PandasViewSet):
         return f"{models.Mission.objects.get(pk=request.query_params['mission']).name}_Oxygen_Report"
 
 
-class ChlViewset(viewsets.ModelViewSet):
-    queryset = models.ChlSample.objects.all()
-
+class ChlViewset(SampleViewset):
+    model = models.ChlSample
     serializer_class = serializers.ChlReport
-
-    def get_queryset(self):
-        if 'mission_id' in self.request.GET:
-            return models.ChlSample.objects.filter(bottle__event__mission=self.request.GET['mission_id'])
-
-        return models.ChlSample.objects.all()
 
 
 class PandaChlReport(ChlViewset, PandasViewSet):
 
     def get_pandas_filename(self, request, format):
         return f"{models.Mission.objects.get(pk=request.query_params['mission']).name}_Chl_Report"
+
+
+class FullSampleViewset(viewsets.ModelViewSet):
+    queryset = models.Bottle.objects.all()
+    serializer_class = serializers.FullReport
+
+    def get_queryset(self):
+        queryset = models.Bottle.objects.all()
+
+        if 'mission_id' in self.request.GET:
+            queryset = queryset.filter(event__mission_id=self.request.GET['mission_id'])
+
+        return queryset

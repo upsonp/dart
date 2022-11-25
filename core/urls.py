@@ -11,7 +11,6 @@ urlpatterns = [
     path('mission/', views.MissionFilterView.as_view(), name="mission_filter"),
     path('mission/new/', views.MissionCreateView.as_view(), name="mission_new"),
     path('mission/event/<int:pk>/', views.EventDetails.as_view(), name="event_details"),
-    path('mission/ctd/<int:pk>/', views.CTDDetails.as_view(), name="ctd_details"),
     path('mission/sample/<int:pk>/', views.SampleDetails.as_view(), name="sample_details"),
     path('mission/delete/', views.mission_delete, name="mission_delete"),
 

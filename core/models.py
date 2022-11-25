@@ -121,6 +121,23 @@ def get_station(name):
     return __get_lookup__(Station, name)
 
 
+def get_instrument(instrument_name):
+    try:
+        inst_type = InstrumentType[instrument_name.lower()].value
+    except KeyError:
+        # if an unknown type is recieved consider this an 'other' event
+        inst_type = InstrumentType['other'].value
+
+    instr = Instrument.objects.filter(name=instrument_name, instrument_type=inst_type)
+    if not instr:
+        instr = Instrument(name=instrument_name, instrument_type=inst_type)
+        instr.save()
+    else:
+        instr = instr[0]
+
+    return instr
+
+
 def get_sensor_name(name):
     sensor_vars = re.split("(\d)", name, 1)
     sensor = Sensor.objects.filter(name=sensor_vars[0])
@@ -258,7 +275,9 @@ class Action(models.Model):
 
     # mid helps us track issues
     mid = models.IntegerField(verbose_name="$@MID@$")
-    action_type = models.IntegerField(verbose_name="Event Type", choices=ActionType.choices)
+    action_type = models.IntegerField(verbose_name="Action Type", choices=ActionType.choices)
+    # if the action is an unknown type then leave a comment here identifying what the 'other' type is
+    action_type_other = models.CharField(verbose_name="Action Other", max_length=50, blank=True, null=True)
 
     comment = models.CharField(verbose_name="Comment", max_length=255, blank=True, null=True)
 
@@ -284,18 +303,16 @@ class Bottle(models.Model):
     bottle_number = models.IntegerField(verbose_name="Bottle Number")
 
     def get_sensor_data_by_name(self, sensor_name, sensor_type, priority=1):
-        return CTDData.objects.get(
+        return self.bottle_data.get(
             sensor__name__iexact=sensor_name,
             sensor__sensor_type=sensor_type,
-            sensor__priority=priority,
-            bottle=self)
+            sensor__priority=priority)
 
     def get_sensor_data_by_unit(self, unit, sensor_type, priority=1):
-        return CTDData.objects.get(
+        return self.bottle_data.get(
             sensor__units__iexact=unit,
             sensor__sensor_type=sensor_type,
-            sensor__priority=priority,
-            bottle=self)
+            sensor__priority=priority)
 
 
 class Sensor(models.Model):
