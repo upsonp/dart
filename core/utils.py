@@ -813,15 +813,20 @@ def load_chl(mission_id, stream):
     return error
 
 
-def set_directory(request, mission):
+def ajax_set_directory(request, mission):
     dir = request.GET['dir']
     f_type = request.GET['type']
-    mission = models.Mission.objects.get(pk=mission)
 
-    dfd = models.DataFileDirectory(mission=mission, directory=dir)
+    set_directory(mission_id=mission, directory=dir, file_type=f_type)
+
+
+def set_directory(mission_id, directory, file_type):
+    mission = models.Mission.objects.get(pk=mission_id)
+
+    dfd = models.DataFileDirectory(mission=mission, directory=directory)
     dfd.save()
 
-    dfd_type = models.DataFileDirectoryType(directory=dfd, file_type=models.FileType[f_type].value)
+    dfd_type = models.DataFileDirectoryType(directory=dfd, file_type=models.FileType[file_type].value)
     dfd_type.save()
 
     return JsonResponse({})
