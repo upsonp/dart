@@ -282,15 +282,18 @@
             },
             load_file(index) {
                 if(index == null) {
+                    // If no index is passed to the method process all files recursively
                     this.files.forEach( f => {this.load_file(this.files.indexOf(f))})
                     return;
                 } else if(index === -1) {
+                    // -1 indicates that only unprocessed files should be processed
                     let filted_files = this.files.filter(f => {
                         return !f.processed;
                     });
                     filted_files.forEach( f => {this.load_file(this.files.indexOf(f))})
                     return;
                 } else if(index === -2) {
+                    // -2 process only files that contained errors
                     let filted_files = this.files.filter(f => {
                         return f.errors;
                     });
@@ -298,9 +301,8 @@
                     return;
                 }
 
-                // For now I'm using the client to queue up files to load and limiting how many can be sent to the server
-                // Once I've worked out server side threading I'll do this on the server.
-                // processing more than 1 file at a time for elog doesn't add any benifit
+                // processing more than 1 file at a time for elog doesn't add any benefit and may lead to
+                // Database locking errors
                 if(this.processing.length >= 1){
                     this.to_process.push(index);
                     this.files[index].bg = 'btn-light';
@@ -337,6 +339,7 @@
                         }
                         this.load_events();
                     } else {
+                        // if the response is undefined something went really wrong
                         this.files[index].bg = "btn-danger";
                     }
 
