@@ -500,7 +500,7 @@ def read_btl(btl_file):
             # if the label doesn'e exists, which might happen in the case of 'Bottle_' a value error is raised
             pass
 
-    columns = []
+    sensors = []
     for h in col_headers:
         # I've found that sensor columns usually have a naming convention where its xxx#yyy where the number denotes
         # the primary (0) sensor and the secondary (1) sensor. However, what follows the number is also relevant
@@ -527,12 +527,14 @@ def read_btl(btl_file):
             if units:
                 sen.units = units
 
-            sen.save()
+            sensors.append(sen)
 
+    models.Sensor.objects.bulk_create(sensors)
 
     b_create = []
     b_update = []
     bottle_date = data_frame[["Bottle", "Date"]]
+    errors = []
     for row in bottle_date.iterrows():
         bottle_id = row[1]["Bottle"]
         date = row[1]["Date"]
@@ -552,7 +554,7 @@ def read_btl(btl_file):
                                        f"ID range {event.sample_id} - {event.end_sample_id}",
                                stack_trace="",
                                error_code=models.ErrorType.bad_id)
-            err.save()
+            errors.append(err)
 
         if len(models.Bottle.objects.filter(event=event, bottle_number=bottle_id)) <= 0:
             b_create.append(models.Bottle(event=event, bottle_id=bottle_label,
@@ -575,12 +577,13 @@ def read_btl(btl_file):
             if update:
                 b_update.append(b)
 
+    models.Error.objects.bulk_create(errors)
     models.Bottle.objects.bulk_create(b_create)
     models.Bottle.objects.bulk_update(b_update, fields=['bottle_id', 'bottle_number', 'date_time'])
 
+    data_column_create = []
+    data_column_update = []
     for c in col_headers:
-        data_column_create = []
-        data_column_update = []
         sensor = models.get_sensor_name(c)
 
         df = data_frame[["Bottle", c]]
@@ -595,8 +598,8 @@ def read_btl(btl_file):
             else:
                 data_column_create.append(models.CTDData(bottle=bottle, sensor=sensor, value=data[1][c]))
 
-        models.CTDData.objects.bulk_create(data_column_create)
-        models.CTDData.objects.bulk_update(data_column_update, fields=["value"])
+    models.CTDData.objects.bulk_create(data_column_create)
+    models.CTDData.objects.bulk_update(data_column_update, fields=["value"])
 
 
 def post_ctd_validation(ctd_files):

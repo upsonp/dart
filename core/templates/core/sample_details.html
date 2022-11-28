@@ -434,12 +434,14 @@
                 get_sample(key) {
                     let endpoint = this.endpoints[key] + "?mission_id=" + {{ object.id }};
                     apiService(endpoint, "GET").then(response => {
-                        this.samples[key] = response;
-                        if(key === 'ctd') {
-                            this.samples[key] = this.samples[key][0];
+                        if(response !== undefined) {
+                            this.samples[key] = response;
+                            if (key === 'ctd') {
+                                this.samples[key] = this.samples[key][0];
+                            }
+                            this.loading[key] = false;
+                            this.apply_filter(key);
                         }
-                        this.loading[key] = false;
-                        this.apply_filter(key);
                     });
                 },
                 update_ctd_directory() {
