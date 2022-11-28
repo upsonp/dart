@@ -6,7 +6,7 @@ app_name = 'core'
 
 urlpatterns = [
 
-    path('mission/dir/<int:mission>/', utils.set_directory, name="set_dir"),
+    path('mission/dir/<int:mission>/', utils.ajax_set_directory, name="set_dir"),
 
     path('mission/', views.MissionFilterView.as_view(), name="mission_filter"),
     path('mission/new/', views.MissionCreateView.as_view(), name="mission_new"),

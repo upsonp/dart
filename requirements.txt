@@ -1,4 +1,4 @@
-Django==3.1.4
+Django>=3.1.14
 
 # django-filters is used for easily creating filter pages to
 django-filter==2.4.0
