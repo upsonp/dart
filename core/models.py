@@ -298,10 +298,15 @@ class Bottle(models.Model):
     event = models.ForeignKey(Event, verbose_name="Event", related_name="bottles", on_delete=models.CASCADE)
     date_time = models.DateTimeField(verbose_name="Fired Date/Time")
 
+    bottle_number = models.IntegerField(verbose_name="Bottle Number")
+
+    pressure = models.FloatField(verbose_name="Pressure", default=0.0)
+
     # the bottle number is its order from 1 to N in a series of bottles as opposed tot he bottle ID which is the
     # label placed on the bottle linking it to all samples that come from that bottle.
-    bottle_id = models.IntegerField(verbose_name="Bottle ID")
-    bottle_number = models.IntegerField(verbose_name="Bottle Number")
+    @property
+    def bottle_id(self):
+        return self.event.sample_id + self.bottle_number
 
     def get_sensor_data_by_name(self, sensor_name, sensor_type, priority=1):
         return self.bottle_data.get(
@@ -352,16 +357,14 @@ class OxygenSample(Sample):
 
     @property
     def average(self):
-        total = 0
-        count = 0
+        winks = []
         if self.winkler_1:
-            total = self.winkler_1
-            count += 1
-        if self.winkler_2:
-            total += self.winkler_2
-            count += 1
+            winks.append(self.winkler_1)
 
-        return total/count
+        if self.winkler_2:
+            winks.append(self.winkler_2)
+
+        return numpy.average(winks)
 
 
 class SaltSample(Sample):

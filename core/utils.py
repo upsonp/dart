@@ -296,6 +296,11 @@ def process_attachments_actions(log_file, mid_map, mids):
     u_actions = {'actions':[], 'fields': []}
     cur_event = None
     errors = []
+    time_position = None
+    comment = None
+    event_id = None
+    evt_type_t = None
+    event = None
     for m in mids:
         try:
             # This date is the date of the last elog update and isn't accurate for recording purpose
@@ -487,18 +492,21 @@ def read_btl(btl_file):
     models.Error.objects.filter(file=btl_file).delete()
 
     data_frame = ctd.from_btl(btl_file.file_path)
+    mission = btl_file.directory.mission
+
     metadata = getattr(data_frame, "_metadata")
     header = metadata['header'].split('\n')
-    # lat_str = None
-    # lon_str = None
+
     event_number = None
 
     for h in header:
+        # this is how the log file event and the bottle file are connected
+        # sadly, it seems NFL region doesn't use an event number the same way ATL region does
         if 'event_number:' in h.lower():
             h_str = h.split(":")
             event_number = h_str[1].strip()
 
-    event = models.Event.objects.get(mission=btl_file.directory.mission,
+    event = models.Event.objects.get(mission=mission,
                                      instrument__instrument_type=models.InstrumentType.ctd.value,
                                      event_id=int(event_number))
 
@@ -509,13 +517,14 @@ def read_btl(btl_file):
     for c in data_frame.columns:
         col_headers.append(c)
 
-    pop = ['Bottle', 'Bottle_', 'Date', 'Statistic', 'Latitude', 'Longitude']
+    # These are columns we either have no use for or we will specifically call and use later
+    pop = ['Bottle', 'Bottle_', 'Date', 'Statistic', 'PrDM', 'Latitude', 'Longitude']
     for h in pop:
         try:
             b_idx = col_headers.index(h)
             col_headers.pop(b_idx)
         except ValueError:
-            # if the label doesn'e exists, which might happen in the case of 'Bottle_' a value error is raised
+            # if the label doesn't exists, which might happen in the case of 'Bottle_' a value error is raised
             pass
 
     sensors = []
@@ -550,12 +559,13 @@ def read_btl(btl_file):
     models.Sensor.objects.bulk_create(sensors)
 
     b_create = []
-    b_update = []
-    bottle_date = data_frame[["Bottle", "Date"]]
+    b_update = {"data": [], "fields": []}
+    bottle_date = data_frame[["Bottle", "Date", "PrDM"]]
     errors = []
     for row in bottle_date.iterrows():
         bottle_id = row[1]["Bottle"]
         date = row[1]["Date"]
+        pressure = row[1]["PrDM"]
 
         # assume UTC time if a timezone isn't set
         if not hasattr(date, 'timezone'):
@@ -567,7 +577,7 @@ def read_btl(btl_file):
         bottle_label = event.sample_id + (bottle_id - 1)
 
         if event.instrument.instrument_type == models.InstrumentType.ctd.value and bottle_label > event.end_sample_id:
-            err = models.Error(mission=btl_file.directory.mission, file=btl_file, line=(metadata["skiprows"]+row[0]),
+            err = models.Error(mission=mission, file=btl_file, line=(metadata["skiprows"]+row[0]),
                                message=f"Warning: Bottle ID ({bottle_label}) for event {event.event_id} is outside the "
                                        f"ID range {event.sample_id} - {event.end_sample_id}",
                                stack_trace="",
@@ -575,29 +585,41 @@ def read_btl(btl_file):
             errors.append(err)
 
         if len(models.Bottle.objects.filter(event=event, bottle_number=bottle_id)) <= 0:
-            b_create.append(models.Bottle(event=event, bottle_id=bottle_label,
-                                       bottle_number=bottle_id, date_time=date))
+            b_create.append(models.Bottle(event=event, bottle_id=bottle_label, pressure=pressure,
+                                          bottle_number=bottle_id, date_time=date))
         else:
             update = False
             b = models.Bottle.objects.get(event=event, bottle_number=bottle_id)
             if b.bottle_id != bottle_label:
                 b.bottle_id = bottle_label
+                if 'bottle_id' not in b_update['fields']:
+                    b_update['fields'].append('bottle_id')
                 update = True
 
             if b.bottle_number != bottle_id:
                 b.bottle_number = bottle_id
+                if 'bottle_number' not in b_update['fields']:
+                    b_update['fields'].append('bottle_number')
                 update = True
 
             if b.date_time != date:
                 b.date_time = date
+                if 'date_time' not in b_update['fields']:
+                    b_update['fields'].append('date_time')
+                update = True
+
+            if b.pressure != pressure:
+                b.pressure = pressure
+                if 'pressure' not in b_update['fields']:
+                    b_update['fields'].append('pressure')
                 update = True
 
             if update:
-                b_update.append(b)
+                b_update["data"].append(b)
 
     models.Error.objects.bulk_create(errors)
     models.Bottle.objects.bulk_create(b_create)
-    models.Bottle.objects.bulk_update(b_update, fields=['bottle_id', 'bottle_number', 'date_time'])
+    models.Bottle.objects.bulk_update(objs=b_update['data'], fields=b_update['fields'])
 
     data_column_create = []
     data_column_update = []
