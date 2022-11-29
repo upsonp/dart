@@ -295,6 +295,7 @@ def process_attachments_actions(log_file, mid_map, mids):
     c_actions = []
     u_actions = {'actions':[], 'fields': []}
     cur_event = None
+    errors = []
     for m in mids:
         try:
             # This date is the date of the last elog update and isn't accurate for recording purpose
@@ -316,9 +317,9 @@ def process_attachments_actions(log_file, mid_map, mids):
                             instr_sensors.append(models.InstrumentSensor(event=event, name=a))
         except Exception as e:
             error = models.Error(mission=mission, file=log_file, line=m,
-                                 message=f"ERR: {log_file.file.name} processing attachments for $@MID@$: "
-                                         f"{m}", stack_trace=str(e))
-            error.save()
+                                 message=f"ERR: {log_file.file.name} processing attachments for $@MID@$: {m}",
+                                 stack_trace=str(e))
+            errors.append(error)
 
         try:
             # this is a 'naive' date time with no time zone. But it should always be in UTC
@@ -378,13 +379,21 @@ def process_attachments_actions(log_file, mid_map, mids):
                     action.action_type_other = evt_type_t
 
                 c_actions.append(action)
+        except models.Action.MultipleObjectsReturned as e:
+            error = models.Error(mission=mission, file=log_file, line=m, error_code=models.ErrorType.duplicate_value,
+                                 message=f"An event may not contain duplicate actions, Action may be misnamed for "
+                                         f"$@MID@$: {m}: "
+                                         f"{m}", stack_trace=str(e))
+            errors.append(error)
         except Exception as e:
             error = models.Error(mission=mission, file=log_file, line=m,
                                  message=f"ERR: {log_file.file.name} processing actions for $@MID@$: "
                                          f"{m}", stack_trace=str(e))
-            error.save()
+            errors.append(error)
 
         cur_event = event_id
+
+    models.Error.objects.bulk_create(errors)
 
     models.InstrumentSensor.objects.bulk_create(instr_sensors)
     models.Action.objects.bulk_create(c_actions)
@@ -396,7 +405,8 @@ def process_variables(log_file, mid_map, mids):
     mission = log_file.directory.mission
     buf = mid_map['buffer']
 
-    fields = []
+    fields_create = []
+    fields_update = []
     for m in mids:
         try:
             event_id = buf[m].pop('Event')
@@ -416,14 +426,22 @@ def process_variables(log_file, mid_map, mids):
 
             # models.get_variable_name(name=k) is going to be a bottle neck if a variable doesn't already exist
             for k, v in buf[m].items():
-                fields.append(models.VariableField(action=action, name=models.get_variable_name(name=k), value=v))
+                variable = models.get_variable_name(name=k)
+                v_filter = models.VariableField.objects.filter(action=action, name=variable)
+                if len(v_filter) <= 0:
+                    fields_create.append(models.VariableField(action=action, name=models.get_variable_name(name=k), value=v))
+                else:
+                    v_filter[0].value = v
+                    fields_update.append(v_filter[0])
+
         except Exception as e:
             error = models.Error(mission=mission, file=log_file, line=m,
                                  message=f"ERR: {log_file.file.name} processing variables for $@MID@$: "
                                          f"{m}", stack_trace=str(e))
             error.save()
 
-    models.VariableField.objects.bulk_create(fields)
+    models.VariableField.objects.bulk_create(fields_create)
+    models.VariableField.objects.bulk_update(objs=fields_update, fields=['value'])
 
 
 def process_ctd(request, mission_id):

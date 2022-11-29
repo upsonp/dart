@@ -14,6 +14,7 @@ class ErrorType(models.IntegerChoices):
     missing_id = 1, "Missing Sample ID"
     bad_id = 2, "Bad Sample ID"
     missing_information = 3, "Missing Information"
+    duplicate_value = 4, "Duplicate Value"
 
 
 class ActionType(models.IntegerChoices):
