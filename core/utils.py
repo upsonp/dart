@@ -11,7 +11,7 @@ import pytz
 from openpyxl import load_workbook
 
 from datetime import datetime
-from os.path import join, isfile
+from os.path import join
 
 from django.http import JsonResponse
 
@@ -48,7 +48,7 @@ def convertDMS_degs(dms_string):
 
 def convertDegs_DMS(dd):
     d = int(dd)
-    m = float((dd-d)*60.0)
+    m = float((dd - d) * 60.0)
 
     return [d, m]
 
@@ -62,7 +62,7 @@ def get_files(request):
     if t_log_dir:
         log_dir = t_log_dir[0]
     else:
-        return JsonResponse({'files':[]})
+        return JsonResponse({'files': []})
 
     for path in os.listdir(log_dir.directory):
         if os.path.isfile(join(log_dir.directory, path)) and path.lower().endswith(type.label.lower()):
@@ -144,7 +144,7 @@ def read_elog(log_file):
     paragraph = re.split('====*\n\n', stream.read().strip())
     t = time.time()
     print(f"start: {(time.time() - t)}")
-    mid_map = {'file': log_file, 'buffer':{}}
+    mid_map = {'file': log_file, 'buffer': {}}
     for mid in paragraph:
         # Each variable in a mid object starts with the label followed by a colon followed by the value
         tmp = re.findall('(.*?): *(.*?)\n', mid)
@@ -325,8 +325,8 @@ def process_attachments_actions_time_location(log_file, mid_map, mids):
 
         try:
             # this is a 'naive' date time with no time zone. But it should always be in UTC
-            time = f"{time_position[1][0:2]}:{time_position[1][2:4]}:{time_position[1][4:6]}"
-            date_time = datetime.strptime(f"{time_position[0]} {time} +00:00", '%Y-%m-%d %H:%M:%S %z')
+            time_part = f"{time_position[1][0:2]}:{time_position[1][2:4]}:{time_position[1][4:6]}"
+            date_time = datetime.strptime(f"{time_position[0]} {time_part} +00:00", '%Y-%m-%d %H:%M:%S %z')
 
             lat = convertDMS_degs(time_position[2])
             lon = convertDMS_degs(time_position[3])
@@ -431,7 +431,8 @@ def process_variables(log_file, mid_map, mids):
                 variable = models.get_variable_name(name=k)
                 v_filter = models.VariableField.objects.filter(action=action, name=variable)
                 if len(v_filter) <= 0:
-                    fields_create.append(models.VariableField(action=action, name=models.get_variable_name(name=k), value=v))
+                    fields_create.append(models.VariableField(action=action, name=models.get_variable_name(name=k),
+                                                              value=v))
                 else:
                     v_filter[0].value = v
                     fields_update.append(v_filter[0])
@@ -449,7 +450,7 @@ def process_variables(log_file, mid_map, mids):
 def process_ctd(request, mission_id):
     ctd_files = []
     updated = []
-    errors = []
+    ctd_file = None
     if 'fid' in request.GET:
         fid = request.GET["fid"]
 
@@ -476,8 +477,8 @@ def process_ctd(request, mission_id):
         post_ctd_validation(ctd_files)
 
     errors = models.Error.objects.filter(file=ctd_file)
-    return JsonResponse({'updated': updated, "errors": [{"pk": e.pk, "line": e.line, "msg": e.message, "trace": e.stack_trace}
-                                            for e in errors]})
+    return JsonResponse({'updated': updated, "errors": [{"pk": e.pk, "line": e.line, "msg": e.message,
+                                                         "trace": e.stack_trace} for e in errors]})
 
 
 def read_ctd(ctd_file):
@@ -575,7 +576,7 @@ def read_btl(btl_file):
             models.Bottle.objects.filter(event=event, bottle_number=bottle_number).delete()
 
         if event.instrument.instrument_type == models.InstrumentType.ctd.value and bottle_id > event.end_sample_id:
-            err = models.Error(mission=mission, file=btl_file, line=(metadata["skiprows"]+row[0]),
+            err = models.Error(mission=mission, file=btl_file, line=(metadata["skiprows"] + row[0]),
                                message=f"Warning: Bottle ID ({bottle_id}) for event {event.event_id} is outside the "
                                        f"ID range {event.sample_id} - {event.end_sample_id}",
                                stack_trace="",
@@ -642,7 +643,7 @@ def post_ctd_validation(ctd_files):
 
 def load_samples(request, pk):
     errors = []
-    type = request.GET['type']
+    file_type = request.GET['type']
     files = request.FILES
 
     file_names = files.keys()
@@ -650,11 +651,11 @@ def load_samples(request, pk):
         models.Error.objects.filter(file_name=fname).delete()
 
         print(f"Load Start: {fname}")
-        if type == 'salt':
+        if file_type == 'salt':
             errors += load_salt(pk, files[fname])
-        elif type == 'oxy':
+        elif file_type == 'oxy':
             errors += load_oxy(pk, files[fname])
-        elif type == 'chl':
+        elif file_type == 'chl':
             errors += load_chl(pk, files[fname])
         print(f"Load Finished")
 
@@ -698,11 +699,13 @@ def load_oxy(mission_id, stream):
                 sample_id = sample.split("_")
 
                 try:
-                    bottle = models.Bottle.objects.get(bottle_id=sample_id[0],
-                                                       event__sample_id__lte=sample_id[0],
-                                                       event__end_sample_id__gte=sample_id[0],
-                                                       event__mission_id=mission_id,
-                                                       event__instrument__instrument_type=models.InstrumentType.ctd.value)
+                    bottle = models.Bottle.objects.get(
+                        bottle_id=sample_id[0],
+                        event__sample_id__lte=sample_id[0],
+                        event__end_sample_id__gte=sample_id[0],
+                        event__mission_id=mission_id,
+                        event__instrument__instrument_type=models.InstrumentType.ctd.value
+                    )
 
                     if sample_id[1] == '1':
                         oxy = models.OxygenSample(file=file_name, bottle=bottle, winkler_1=o2)
@@ -759,12 +762,13 @@ def load_salt(mission_id, stream):
             if bottle_label and isint(bottle_label) and calculated_salinity and isfloat(calculated_salinity):
                 try:
                     date_time = datetime.strptime((datetime.strftime(date_time, '%Y-%m-%d %H:%M:%S') + " +00:00"),
-                                      '%Y-%m-%d %H:%M:%S %z')
-                    bottle = models.Bottle.objects.get(bottle_id=bottle_label,
-                                                       event__sample_id__lte=bottle_label,
-                                                       event__end_sample_id__gte=bottle_label,
-                                                       event__mission_id=mission_id,
-                                                       event__instrument__instrument_type=models.InstrumentType.ctd.value)
+                                                  '%Y-%m-%d %H:%M:%S %z')
+                    bottle = models.Bottle.objects.get(
+                        bottle_id=bottle_label,
+                        event__sample_id__lte=bottle_label,
+                        event__end_sample_id__gte=bottle_label,
+                        event__mission_id=mission_id,
+                        event__instrument__instrument_type=models.InstrumentType.ctd.value)
 
                     sample = models.SaltSample(file=file_name, bottle=bottle, sample_id=sample_id,
                                                calculated_salinity=calculated_salinity,
@@ -818,11 +822,12 @@ def load_chl(mission_id, stream):
             if (sample or cur_sample) and chl and phae and isfloat(chl) and isfloat(phae):
                 try:
                     cur_sample = sample if sample else cur_sample
-                    bottle = models.Bottle.objects.get(bottle_id=cur_sample,
-                                                       event__sample_id__lte=cur_sample,
-                                                       event__end_sample_id__gte=cur_sample,
-                                                       event__mission_id=mission_id,
-                                                       event__instrument__instrument_type=models.InstrumentType.ctd.value)
+                    bottle = models.Bottle.objects.get(
+                        bottle_id=cur_sample,
+                        event__sample_id__lte=cur_sample,
+                        event__end_sample_id__gte=cur_sample,
+                        event__mission_id=mission_id,
+                        event__instrument__instrument_type=models.InstrumentType.ctd.value)
 
                     sample_count = 1 if sample else 2
                     chl_sample = models.ChlSample(file=file_name, bottle=bottle, sample_order=sample_count,
