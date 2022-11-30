@@ -146,9 +146,7 @@ class BottleReport(serializers.ModelSerializer):
         return instance.bottle_id
 
     def get_pressure(self, instance):
-        p = instance.get_sensor_data_by_name('prdm', models.SensorType.pressure)
-
-        return p.value
+        return instance.pressure
 
 
 class CTDReportSerializer(serializers.ModelSerializer):

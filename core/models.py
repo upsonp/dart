@@ -9,6 +9,7 @@ from django.dispatch import receiver
 from os.path import join
 
 
+
 class ErrorType(models.IntegerChoices):
     unknown = 0, "Unknown"
     missing_id = 1, "Missing Sample ID"
@@ -298,15 +299,12 @@ class Bottle(models.Model):
     event = models.ForeignKey(Event, verbose_name="Event", related_name="bottles", on_delete=models.CASCADE)
     date_time = models.DateTimeField(verbose_name="Fired Date/Time")
 
+    # the bottle number is its order from 1 to N in a series of bottles as opposed tot he bottle ID which is the
+    # label placed on the bottle linking it to all samples that come from that bottle.
+    bottle_id = models.IntegerField(verbose_name="Bottle ID")
     bottle_number = models.IntegerField(verbose_name="Bottle Number")
 
     pressure = models.FloatField(verbose_name="Pressure", default=0.0)
-
-    # the bottle number is its order from 1 to N in a series of bottles as opposed tot he bottle ID which is the
-    # label placed on the bottle linking it to all samples that come from that bottle.
-    @property
-    def bottle_id(self):
-        return self.event.sample_id + self.bottle_number
 
     def get_sensor_data_by_name(self, sensor_name, sensor_type, priority=1):
         return self.bottle_data.get(

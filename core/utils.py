@@ -1,6 +1,5 @@
 import os
 import re
-import threading
 import time
 
 import ctd
@@ -11,15 +10,12 @@ import pytz
 
 from openpyxl import load_workbook
 
-from timeit import default_timer as timer
-
 from datetime import datetime
 from os.path import join, isfile
 
 from django.http import JsonResponse
 
 from core import models
-from threading import Lock
 
 from . import validations
 
@@ -80,6 +76,7 @@ def get_files(request):
                                    models.DataFile.objects.filter(directory=log_dir)]})
 
     return resp
+
 
 def get_ctd_files(request):
     btl_files = []
@@ -142,8 +139,6 @@ def read_elog(log_file):
     file = join(log_file.directory.directory, log_file.file.name)
     stream = io.StringIO(open(file=file, mode="r").read())
 
-    mission = log_file.directory.mission
-
     # All mid objects start with $@MID@$ and end with a series of equal signs and a blank line.
     # Using regular expressions we'll split the whole stream in to mid objects, then process each object
     paragraph = re.split('====*\n\n', stream.read().strip())
@@ -186,32 +181,34 @@ def process_stations_instrumnets(log_file, mid_map, mids):
     e_stations = [s.name for s in models.Station.objects.all()]
     e_instruments = [i.name for i in models.Instrument.objects.all()]
 
-    stations = []
-    instruments = []
+    stations = {'added': [], 'models': []}
+    instruments = {'added':[], 'models': []}
     for m in mids:
         try:
             station = buff[m]['Station']
             instrument = buff[m]['Instrument']
 
-            if station not in e_stations:
-                stations.append(models.Station(name=station))
+            if station not in e_stations and station not in stations['added']:
+                stations['added'].append(station)
+                stations['models'].append(models.Station(name=station))
 
-            if instrument not in e_instruments:
+            if instrument not in e_instruments and instruments not in instruments['added']:
                 try:
                     inst_type = models.InstrumentType[instrument.lower()].value
                 except KeyError:
                     # if an unknown type is recieved consider this an 'other' event
                     inst_type = models.InstrumentType['other'].value
 
-                instruments.append(models.Instrument(name=instrument, instrument_type=inst_type))
+                instruments['added'].append(instrument)
+                instruments['models'].append(models.Instrument(name=instrument, instrument_type=inst_type))
         except Exception as e:
             error = models.Error(mission=mission, file=log_file, line=m,
                                  message=f"ERR: {log_file.file.name} processing stations and instruments for $@MID@$: "
                                          f"{m}", stack_trace=str(e))
             error.save()
 
-    models.Station.objects.bulk_create(stations)
-    models.Instrument.objects.bulk_create(instruments)
+    models.Station.objects.bulk_create(stations['models'])
+    models.Instrument.objects.bulk_create(instruments['models'])
 
 
 def process_events(log_file, mid_map, mids):
@@ -527,7 +524,7 @@ def read_btl(btl_file):
             # if the label doesn't exists, which might happen in the case of 'Bottle_' a value error is raised
             pass
 
-    sensors = []
+    sensors = {'added': [], 'models': []}
     for h in col_headers:
         # I've found that sensor columns usually have a naming convention where its xxx#yyy where the number denotes
         # the primary (0) sensor and the secondary (1) sensor. However, what follows the number is also relevant
@@ -537,33 +534,36 @@ def read_btl(btl_file):
         priority = int(c_name[1]) + 1 if len(c_name) > 1 else None
         units = c_name[2].lower() if len(c_name) > 2 else None
 
-        sensor = models.Sensor.objects.filter(name=c_name[0])
-        if priority:
-            sensor = sensor.filter(priority=priority)
-
-        if units:
-            sensor = sensor.filter(units=units.lower())
-
-        if len(sensor) <= 0:
-
-            sen = models.Sensor(name=c_name[0])
-            sen.sensor_type = models.get_sensor_type(c_name[0])
-
+        if h not in sensors['added']:
+            sensor = models.Sensor.objects.filter(name=c_name[0])
             if priority:
-                sen.priority = priority  # priorty in a sensor name starts counting at zero
+                sensor = sensor.filter(priority=priority)
+
             if units:
-                sen.units = units
+                sensor = sensor.filter(units=units.lower())
 
-            sensors.append(sen)
+            if len(sensor) <= 0:
 
-    models.Sensor.objects.bulk_create(sensors)
+                sen = models.Sensor(name=c_name[0])
+                sen.sensor_type = models.get_sensor_type(c_name[0])
+
+                if priority:
+                    sen.priority = priority  # priorty in a sensor name starts counting at zero
+                if units:
+                    sen.units = units
+
+                sensors['added'].append(h)
+                sensors['models'].append(sen)
+
+    models.Sensor.objects.bulk_create(sensors['models'])
 
     b_create = []
     b_update = {"data": [], "fields": []}
     bottle_date = data_frame[["Bottle", "Date", "PrDM"]]
     errors = []
     for row in bottle_date.iterrows():
-        bottle_id = row[1]["Bottle"]
+        bottle_number = row[1]["Bottle"]
+        bottle_id = bottle_number + event.sample_id - 1
         date = row[1]["Date"]
         pressure = row[1]["PrDM"]
 
@@ -571,35 +571,28 @@ def read_btl(btl_file):
         if not hasattr(date, 'timezone'):
             date = pytz.timezone("UTC").localize(date)
 
-        if len(models.Bottle.objects.filter(event=event, bottle_number=bottle_id)) <= 0:
-            models.Bottle.objects.filter(event=event, bottle_number=bottle_id).delete()
+        if len(models.Bottle.objects.filter(event=event, bottle_number=bottle_number)) <= 0:
+            models.Bottle.objects.filter(event=event, bottle_number=bottle_number).delete()
 
-        bottle_label = event.sample_id + (bottle_id - 1)
-
-        if event.instrument.instrument_type == models.InstrumentType.ctd.value and bottle_label > event.end_sample_id:
+        if event.instrument.instrument_type == models.InstrumentType.ctd.value and bottle_id > event.end_sample_id:
             err = models.Error(mission=mission, file=btl_file, line=(metadata["skiprows"]+row[0]),
-                               message=f"Warning: Bottle ID ({bottle_label}) for event {event.event_id} is outside the "
+                               message=f"Warning: Bottle ID ({bottle_id}) for event {event.event_id} is outside the "
                                        f"ID range {event.sample_id} - {event.end_sample_id}",
                                stack_trace="",
                                error_code=models.ErrorType.bad_id)
             errors.append(err)
 
-        if len(models.Bottle.objects.filter(event=event, bottle_number=bottle_id)) <= 0:
-            b_create.append(models.Bottle(event=event, bottle_id=bottle_label, pressure=pressure,
-                                          bottle_number=bottle_id, date_time=date))
+        if len(models.Bottle.objects.filter(event=event, bottle_number=bottle_number)) <= 0:
+            b_create.append(models.Bottle(event=event, pressure=pressure, bottle_number=bottle_number,
+                                          date_time=date, bottle_id=bottle_id))
         else:
             update = False
-            b = models.Bottle.objects.get(event=event, bottle_number=bottle_id)
-            if b.bottle_id != bottle_label:
-                b.bottle_id = bottle_label
-                if 'bottle_id' not in b_update['fields']:
-                    b_update['fields'].append('bottle_id')
-                update = True
+            b = models.Bottle.objects.get(event=event, bottle_number=bottle_number)
 
-            if b.bottle_number != bottle_id:
-                b.bottle_number = bottle_id
-                if 'bottle_number' not in b_update['fields']:
-                    b_update['fields'].append('bottle_number')
+            if b.bottle_id != bottle_id:
+                b.bottle_id = bottle_id
+                if 'bottle_id' not in b_update['fields']:
+                    b_update['fields'].append('date_time')
                 update = True
 
             if b.date_time != date:
@@ -619,7 +612,8 @@ def read_btl(btl_file):
 
     models.Error.objects.bulk_create(errors)
     models.Bottle.objects.bulk_create(b_create)
-    models.Bottle.objects.bulk_update(objs=b_update['data'], fields=b_update['fields'])
+    if len(b_update['data']) > 0:
+        models.Bottle.objects.bulk_update(objs=b_update['data'], fields=b_update['fields'])
 
     data_column_create = []
     data_column_update = []

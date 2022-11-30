@@ -52,18 +52,6 @@ class InstrumentFactory(DjangoModelFactory):
     instrument_type = factory.lazy_attribute(lambda o: faker.random.choice(models.InstrumentType.choices)[0])
 
 
-class LogFileFactory(DjangoModelFactory):
-
-    class Meta:
-        model = models.DataFile
-
-    directory = factory.SubFactory(DataFileDirectoryFactory)
-
-    file = factory.django.FileField(filename='2010.log')
-    file_type = models.FileType.log.value
-    processed = factory.lazy_attribute(lambda o: faker.boolean())
-
-
 class EventFactory(DjangoModelFactory):
 
     class Meta:
@@ -227,3 +215,17 @@ class ChlSampleFactory(SampleFactory):
             file = instance.file
             bottle = instance.bottle
             ChlSampleFactory(file=file, bottle=bottle, sample_order=2)
+
+
+class LogFileFactory(DjangoModelFactory):
+
+    class Meta:
+        model = models.DataFile
+
+    directory = factory.SubFactory(DataFileDirectoryFactory)
+
+    file = factory.django.FileField(filename='2010.log')
+    file_type = models.FileType.log.value
+    processed = factory.lazy_attribute(lambda o: faker.boolean())
+
+

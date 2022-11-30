@@ -510,7 +510,7 @@
                     // For now I'm using the client to queue up files to load and limiting how many can be sent to the server
                     // Once I've worked out server side threading I'll do this on the server.
                     // processing 2 files at a time works well for Bottles
-                    if(this.processing.length >= 2){
+                    if(this.processing.length >= 1){
                         this.to_process.push(index);
                         app.files[index].bg = 'btn-light';
                         this.$forceUpdate();
