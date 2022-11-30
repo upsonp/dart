@@ -203,16 +203,20 @@ class TestBottle(TestCase):
 
     @tag("bulk_create", "bulk_create_bottle")
     def test_bulk_create_bottle(self):
+        batch_create = 10
         # Each event is often made up of multiple bottles, when this happens
         # the bottles need to have sequential bottle_numbers
-        bottles = cff.BottleFactory.build_batch(10)
+        bottles = cff.BottleFactory.build_batch(batch_create)
 
         p_numbrer = 0
         event_sample = bottles[0].event.sample_id
+        self.assertEquals(len(bottles), batch_create)
         for b in bottles:
             self.assertEquals(b.bottle_number, (p_numbrer+1))
-            self.assertEquals(b.bottle_id, (event_sample+b.bottle_number))
+            self.assertEquals(b.bottle_id, (event_sample+b.bottle_number-1))
             p_numbrer = b.bottle_number
+        else:
+            self.assertEquals(b.bottle_id, b.event.end_sample_id)
 
 
 @tag("model", "model_sensor")

@@ -1,9 +1,11 @@
-from django.test import TestCase
+from django.test import TestCase, tag
 from . import CoreFactoryFloor as eff
 
 from .. import validations
 from .. import models
 
+
+@tag('validation')
 class ValidationTest(TestCase):
 
     def setUp(self):

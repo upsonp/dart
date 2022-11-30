@@ -166,7 +166,7 @@ def read_elog(log_file):
     process_events(log_file, mid_map, mids)
     print(f"events: {(time.time() - t)}")
 
-    process_attachments_actions(log_file, mid_map, mids)
+    process_attachments_actions_time_location(log_file, mid_map, mids)
     print(f"attachments/actions: {(time.time() - t)}")
 
     process_variables(log_file, mid_map, mids)
@@ -182,7 +182,7 @@ def process_stations_instrumnets(log_file, mid_map, mids):
     e_instruments = [i.name for i in models.Instrument.objects.all()]
 
     stations = {'added': [], 'models': []}
-    instruments = {'added':[], 'models': []}
+    instruments = {'added': [], 'models': []}
     for m in mids:
         try:
             station = buff[m]['Station']
@@ -219,7 +219,7 @@ def process_events(log_file, mid_map, mids):
 
     p_events = []
     c_events = []
-    u_events = {'events': [], 'fields':[]}
+    u_events = {'events': [], 'fields': []}
     for m in mids:
         try:
             event_id = int(buf[m]["Event"])
@@ -284,13 +284,13 @@ def process_events(log_file, mid_map, mids):
         models.Event.objects.bulk_update(objs=u_events['events'], fields=u_events['fields'])
 
 
-def process_attachments_actions(log_file, mid_map, mids):
+def process_attachments_actions_time_location(log_file, mid_map, mids):
     mission = log_file.directory.mission
     buf = mid_map['buffer']
 
     instr_sensors = []
     c_actions = []
-    u_actions = {'actions':[], 'fields': []}
+    u_actions = {'actions': [], 'fields': []}
     cur_event = None
     errors = []
     time_position = None

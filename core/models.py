@@ -9,7 +9,6 @@ from django.dispatch import receiver
 from os.path import join
 
 
-
 class ErrorType(models.IntegerChoices):
     unknown = 0, "Unknown"
     missing_id = 1, "Missing Sample ID"
