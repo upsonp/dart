@@ -134,7 +134,8 @@ def process_elog(request):
 def read_elog(log_file):
     print(f"Processing {log_file.file.name}")
     file = join(log_file.directory.directory, log_file.file.name)
-    stream = io.StringIO(open(file=file, mode="r").read())
+    file_pointer = open(file=file, mode="r")
+    stream = io.StringIO(file_pointer.read())
 
     # All mid objects start with $@MID@$ and end with a series of equal signs and a blank line.
     # Using regular expressions we'll split the whole stream in to mid objects, then process each object
@@ -169,6 +170,8 @@ def read_elog(log_file):
     process_variables(log_file, mid_map, mids)
     print(f"variables: {(time.time() - t)}")
     print(f"end: {(time.time() - t)}")
+
+    file_pointer.close()
 
 
 def process_stations_instrumnets(log_file, mid_map, mids):

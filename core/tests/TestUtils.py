@@ -5,6 +5,7 @@ from .. import utils
 
 from .. import models
 
+import os
 
 @tag('utils')
 class TestElogProcessing(TestCase):
@@ -55,10 +56,12 @@ class TestElogProcessing(TestCase):
     def setUp(self):
         super().setUp()
 
+        # when logfiles are created by the LogFileFactory a blank file is created in
+        # the root directory that has to be removed in the tearDown method
         self.log_file = cff.LogFileFactory(processed=False)
         self.mission = self.log_file.directory.mission
 
-        # use the MidObjectFactory to create a dictionary mimiking what a parsed Mid object would look like
+        # use the MidObjectFactory to create a dictionary mimicking what a parsed Mid object would look like
         # had the object come from an Elog file. This is specific to the Atlantic Region version of an elog file
         mids = []
         for e in self.expected_events:
@@ -70,6 +73,9 @@ class TestElogProcessing(TestCase):
 
         # this is what the mid mapping from the utils.read_elog function produces.
         self.mid_map = {'file': self.log_file, 'buffer': {i+1: mids[i] for i in range(0, len(mids))}}
+
+    def tearDown(self):
+        os.remove(self.log_file.file.name)
 
     def create_events_entries(self, events_dict):
         models.Event.objects.bulk_create([
