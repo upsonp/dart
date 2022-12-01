@@ -116,9 +116,6 @@ def process_elog(request):
         log_file = log_dir.data_files.get(pk=fid)
         log_file.log_errors.all().delete()
 
-        # events = models.Event.objects.filter(actions__file=log_file).distinct()
-        # events.delete()
-
         read_elog(log_file)
 
         validations.validate_events(log_file)
@@ -211,6 +208,15 @@ def process_stations_instrumnets(log_file, mid_map, mids):
     models.Instrument.objects.bulk_create(instruments['models'])
 
 
+def set_attributes(obj, attr_key, attr):
+    update = False
+    if hasattr(obj, attr_key) and getattr(obj, attr_key) != attr:
+        setattr(obj, attr_key, attr)
+        update = True
+
+    return update
+
+
 def process_events(log_file, mid_map, mids):
     mission = log_file.directory.mission
     buf = mid_map['buffer']
@@ -245,31 +251,22 @@ def process_events(log_file, mid_map, mids):
                 c_events.append(models.Event(mission=mission, event_id=event_id, station=station,
                                              instrument=instrument, sample_id=sample_id, end_sample_id=end_sample_id))
             else:
-                e = models.Event.objects.get(mission=mission, event_id=event_id)
                 update = False
-                if e.station != station:
-                    e.station = station
-                    if station not in u_events['fields']:
-                        u_events['fields'].append('station')
-                    update = True
 
-                if e.instrument != instrument:
-                    e.instrument = instrument
-                    if instrument not in u_events['fields']:
-                        u_events['fields'].append('instrument')
-                    update = True
+                attrs = {
+                    'station': station,
+                    'instrument': instrument,
+                    'sample_id': sample_id,
+                    'end_sample_id': end_sample_id
+                }
+                e = models.Event.objects.get(mission=mission, event_id=event_id)
 
-                if e.sample_id != sample_id:
-                    e.sample_id = sample_id
-                    if sample_id not in u_events['fields']:
-                        u_events['fields'].append('sample_id')
-                    update = True
-
-                if e.end_sample_id != end_sample_id:
-                    e.end_sample_id = end_sample_id
-                    if end_sample_id not in u_events['fields']:
-                        u_events['fields'].append('end_sample_id')
-                    update = True
+                keys = attrs.keys()
+                for attr_key in keys:
+                    if set_attributes(e, attr_key, attrs[attr_key]):
+                        update = True
+                        if attr_key not in u_events['fields']:
+                            u_events['fields'].append(attr_key)
 
                 if update:
                     u_events['events'].append(e)
@@ -346,29 +343,19 @@ def process_attachments_actions_time_location(log_file, mid_map, mids):
                 else:
                     action = event.actions.get(action_type=evt_type)
 
-                if action.latitude != lat:
-                    action.latitude = lat
-                    if 'latitude' not in u_actions['fields']:
-                        u_actions['fields'].append('latitude')
-                    update = True
+                attrs = {
+                    'latitude': lat,
+                    'longitude': lon,
+                    'mid': m,
+                    'comment': comment,
+                }
 
-                if action.longitude != lon:
-                    action.longitude = lon
-                    if 'longitude' not in u_actions['fields']:
-                        u_actions['fields'].append('longitude')
-                    update = True
-
-                if action.mid != m:
-                    action.mid = m
-                    if 'mid' not in u_actions['fields']:
-                        u_actions['fields'].append('mid')
-                    update = True
-
-                if action.comment != comment:
-                    action.comment = comment
-                    if 'comment' not in u_actions['fields']:
-                        u_actions['fields'].append('comment')
-                    update = True
+                keys = attrs.keys()
+                for attr_key in keys:
+                    if set_attributes(action, attr_key, attrs[attr_key]):
+                        update = True
+                        if attr_key not in u_actions['fields']:
+                            u_actions['fields'].append(attr_key)
 
                 if update:
                     u_actions['actions'].append(action)

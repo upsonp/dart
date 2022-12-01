@@ -331,12 +331,12 @@ class MidObjectFactory(factory.DictFactory):
         else:
             kwargs[instrument] = instrument.label
 
-        start_sample = kwargs['start_id'] if 'start_id' in kwargs else (495000 + faker.random.randint(0, 999))
-        kwargs['start_id'] = start_sample
+        start_sample = kwargs['sample_id'] if 'sample_id' in kwargs else (495000 + faker.random.randint(0, 999))
+        kwargs['sample_id'] = start_sample
 
         if instrument == instrument.ctd:
             end_sample = kwargs['end_sample_id'] if 'end_sample_id' in kwargs else \
-                (kwargs['start_id'] + faker.random.randint(1, 24))
+                (kwargs['sample_id'] + faker.random.randint(1, 24))
             kwargs['end_sample_id'] = end_sample
             kwargs['attached'] = kwargs['attached'] if 'attached' in kwargs else 'pH | SBE35'
         else:
