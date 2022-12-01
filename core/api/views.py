@@ -93,6 +93,35 @@ class GetErrorReport(viewsets.ModelViewSet):
         return models.Error.objects.all()
 
 
+class BottleViewset(viewsets.ModelViewSet):
+
+    model = models.Bottle
+    serializer_class = serializers.BottleReport
+
+    def get_model(self):
+        return self.model
+
+    def get_queryset(self):
+        queryset = self.get_model().objects.all()
+        if 'mission_id' in self.request.GET:
+            queryset = queryset.filter(event__mission_id=self.request.GET['mission_id'])
+
+        if 'sample_id' in self.request.GET:
+            queryset = queryset.filter(bottle_id=self.request.GET['sample_id'])
+
+        if 'station' in self.request.GET:
+            queryset = queryset.filter(event__station__name=self.request.GET['station'])
+
+        return queryset
+
+    def destroy(self, request, *args, **kwargs):
+        # if samples are not specifically listed use get_queryset to filter down to what should be deleted
+        sample_set = self.get_queryset()
+        sample_set.delete()
+
+        return JsonResponse({})
+
+
 class SampleViewset(viewsets.ModelViewSet):
 
     model = None
@@ -112,7 +141,6 @@ class SampleViewset(viewsets.ModelViewSet):
             queryset = queryset.filter(bottle__event__station__name=self.request.GET['station'])
 
         return queryset
-
 
     def destroy(self, request, *args, **kwargs):
         # if samples are not specifically listed use get_queryset to filter down to what should be deleted

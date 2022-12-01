@@ -321,10 +321,22 @@
 
                 // These are root endpoints other parameters can be added to them
                 endpoints: {
-                    'ctd': "{% url 'core-api:ctd-report-list' %}",
-                    'oxy': "{% url 'core-api:oxygen-list' %}",
-                    'salt': "{% url 'core-api:salt-list' %}",
-                    'chl': "{% url 'core-api:chl-list' %}",
+                    'ctd': {
+                        'get': "{% url 'core-api:ctd-report-list' %}",
+                        'delete': "{% url 'core-api:bottle-list' %}"
+                    },
+                    'oxy': {
+                        'get': "{% url 'core-api:oxygen-list' %}",
+                        'delete': "{% url 'core-api:oxygen-list' %}",
+                    },
+                    'salt': {
+                        'get': "{% url 'core-api:salt-list' %}",
+                        'delete': "{% url 'core-api:salt-list' %}",
+                    },
+                    'chl': {
+                        'get': "{% url 'core-api:chl-list' %}",
+                        'delete': "{% url 'core-api:chl-list' %}",
+                    }
                 },
                 loading: {},
                 samples: {},
@@ -392,7 +404,7 @@
                     }
                 },
                 delete_samples(key) {
-                    let endpoint = this.endpoints[key] + {{ object.id }} + "/?mission_id=" + {{ object.id }};
+                    let endpoint = this.endpoints[key]['delete'] + {{ object.id }} + "/?mission_id=" + {{ object.id }};
 
                     if(this.filter.sample_id) {
                         endpoint += "&sample_id=" + this.filter.sample_id;
@@ -402,7 +414,13 @@
                         endpoint += "&station=" + this.filter.station;
                     }
                     apiService(endpoint, "DELETE").then(response => {
-                        this.get_sample(key)
+                        if(key === 'ctd') {
+                            this.keys.forEach(key => {
+                                this.get_sample(key);
+                            });
+                        } else {
+                            this.get_sample(key);
+                        }
                     });
                 },
                 load_file(event, key) {
@@ -432,7 +450,7 @@
                     // this.interval_id = setInterval(this.get_load_status, 2000);
                 },
                 get_sample(key) {
-                    let endpoint = this.endpoints[key] + "?mission_id=" + {{ object.id }};
+                    let endpoint = this.endpoints[key]['get'] + "?mission_id=" + {{ object.id }};
                     apiService(endpoint, "GET").then(response => {
                         if(response !== undefined) {
                             this.samples[key] = response;

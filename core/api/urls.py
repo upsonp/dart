@@ -12,6 +12,7 @@ router.register(r'ctd-report', views.CTDReport, basename='ctd-report')
 router.register(r'station-name', views.StationNameViewset, basename='station-name')
 
 router.register(r'full_samples', views.FullSampleViewset, basename='full_samples')
+router.register(r'bottle', views.BottleViewset, basename='bottle')
 router.register(r'oxygen', views.OxygenViewset, basename='oxygen')
 router.register(r'salt', views.SaltViewset, basename='salt')
 router.register(r'chl', views.ChlViewset, basename='chl')
