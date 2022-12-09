@@ -158,6 +158,9 @@ class SimpleLookupName(models.Model):
     class Meta:
         abstract = True
 
+    def __str__(self):
+        return self.name
+
 
 class Mission(models.Model):
     name = models.CharField(verbose_name="Mission Name", max_length=30)
