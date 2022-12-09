@@ -1,4 +1,5 @@
 {% extends "core/core_details_template.html" %}
+{%  load bootstrap_icons %}
 
 {% block title %}
     {{ block.super }}
@@ -49,6 +50,9 @@
                             </span>
                             <span class="col-1">
                                 <button class="col mr-1 btn btn-warning" @click="clear_filters">Clear</button>
+                            </span>
+                            <span class="col-2">
+                                <button class="col mr-1 btn btn-danger" @click="delete_event">Delete Selected</button>
                             </span>
                         </div>
                     </div>
@@ -167,12 +171,15 @@
                     <div class="card-header">
                         <div class="card-title">
                             <span>
-                                <div class="row">
+                                <div class="row justify-content-end">
                                     <span class="col-2">
                                         <label for="file_dir">Elog Directory</label>
                                     </span>
                                     <span class="col">
-                                         <input class="col" id="file_dir" type="text" v-model="elog_dir" @change="update_directory" />
+                                         <input class="form-control" id="file_dir" type="text" v-model="elog_dir"/>
+                                    </span>
+                                    <span class="col-1">
+                                        <button class="btn btn-primary" @click="update_directory">{% bs_icon 'arrow-clockwise' %}</button>
                                     </span>
                                 </div>
                                 <div id="file_dir" class="h3">${ file_dir }</div>
@@ -181,29 +188,31 @@
                     </div>
                     <div class="card-body">
                         <div id="load_all" class="row">
-                            <span class="col-2">
-                            <button class="btn btn-primary col-12 m-1" @click="load_file()">All</button>
+                            <span class="col-2 m-1">
+                            <button class="form-control btn btn-primary" @click="load_file()">All</button>
                             </span>
-                            <span class="col-2">
-                            <button class="btn btn-secondary col-12 m-1" @click="load_file(-1)">Unprocessed</button>
+                            <span class="col-2 m-1">
+                            <button class="form-control btn btn-secondary" @click="load_file(-1)">Unprocessed</button>
                             </span>
-                            <span class="col-2">
-                            <button class="btn btn-warning col-12 m-1" @click="load_file(-2)">Re-process Errors</button>
+                            <span class="col-2 m-1">
+                            <button class="form-control btn btn-warning" @click="load_file(-2)">Re-process Errors</button>
                             </span>
                         </div>
-                        <span v-for="(f, index) in files" :key="f.fid">
-                            <button @click="load_file(index)" class="btn col-2 m-1"
-                                    :class="[f.loading==false ? (f.bg ? f.bg : (f.processed==true ? 'btn-primary' : 'btn-secondary')) : 'btn-warning']">
-                                <span v-if="f.loading==true" class="loading">
-                                    <span class="spinner-border" role="status">
-                                        <span class="sr-only"></span>
+                        <div class="row">
+                            <span class="col-2 m-1" v-for="(f, index) in files" :key="f.fid">
+                                <button @click="load_file(index)" class="form-control btn m-1"
+                                        :class="[f.loading==false ? (f.bg ? f.bg : (f.processed==true ? 'btn-primary' : 'btn-secondary')) : 'btn-warning']">
+                                    <span v-if="f.loading==true" class="loading">
+                                        <span class="spinner-border" role="status">
+                                            <span class="sr-only"></span>
+                                        </span>
                                     </span>
-                                </span>
-                                <span>
-                                ${ f.file_name }
-                                </span>
-                            </button>
-                        </span>
+                                    <span>
+                                    ${ f.file_name }
+                                    </span>
+                                </button>
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -423,6 +432,30 @@
                     if(response!==undefined) {
                         this.filtered_events = this.events = response;
                         this.loading_events = false;
+                        this.apply_filter();
+                    }
+                });
+            },
+            delete_event(){
+                let endpoint = "{% url 'core-api:event-list' %}" + {{ mission.id }} + "/?mission_id=" + {{ mission.id }};
+                 if(this.filter.event_id) {
+                    endpoint += "&event_id=" + this.filter.event_id;
+                }
+
+                if(this.filter.station) {
+                    endpoint += "&station=" + this.filter.station;
+                }
+
+                if(this.filter.instrument) {
+                    endpoint += "&instrument=" + this.filter.instrument;
+                }
+
+                if(this.filter.action_type) {
+                    endpoint += "&action_type=" + this.filter.action_type;
+                }
+                apiService(endpoint, "DELETE").then(response => {
+                    if(response!==undefined) {
+                        this.load_events();
                     }
                 });
             },

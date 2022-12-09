@@ -165,6 +165,24 @@ class ActionFactory(DjangoModelFactory):
     action_type = factory.lazy_attribute(lambda o: faker.random.choice(models.ActionType.choices)[0])
 
 
+class VariableNameFactory(DjangoModelFactory):
+
+    class Meta:
+        model = models.VariableName
+
+    name = factory.lazy_attribute(lambda o: faker.name())
+
+
+class VariableFieldFactory(DjangoModelFactory):
+
+    class Meta:
+        model = models.VariableField
+
+    action = factory.SubFactory(ActionFactory)
+    name = factory.SubFactory(VariableNameFactory)
+    value = factory.lazy_attribute(lambda o: faker.nam())
+
+
 class SensorFactory(DjangoModelFactory):
 
     class Meta:

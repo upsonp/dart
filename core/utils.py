@@ -393,44 +393,57 @@ def process_attachments_actions_time_location(log_file, mid_map, mids):
         models.Action.objects.bulk_update(objs=u_actions['actions'], fields=u_actions['fields'])
 
 
+def get_event_type(event, buffer):
+    event_type_label = buffer.pop("Action").lower().replace(' ', '_')
+
+    try:
+        action = event.actions.get(action_type=models.ActionType[event_type_label])
+    except KeyError:
+        # if an unknown type is received consider this an 'other' event
+        action = event.actions.get(action_type=models.ActionType['other'], action_type_other=event_type_label)
+
+    return action
+
+
+def get_create_and_update_variables(action, buffer):
+    variables_to_create = []
+    variables_to_update = []
+    for key, value in buffer.items():
+        variable = models.get_variable_name(name=key)
+        filtered_variables = models.VariableField.objects.filter(action=action, name=variable)
+        if len(filtered_variables) <= 0:
+            new_variable = models.VariableField(action=action, name=variable, value=value)
+            variables_to_create.append(new_variable)
+        else:
+            update_variable = filtered_variables[0]
+            update_variable.value = value
+            variables_to_update.append(update_variable)
+
+    return [variables_to_create, variables_to_update]
+
+
 def process_variables(log_file, mid_map, mids):
     mission = log_file.directory.mission
     buf = mid_map['buffer']
 
     fields_create = []
     fields_update = []
-    for m in mids:
+    for mid in mids:
+        buffer = buf[mid]
         try:
-            event_id = buf[m].pop('Event')
+            event_id = buffer.pop('Event')
             event = models.Event.objects.get(mission=mission, event_id=event_id)
-            evt_type_t = buf[m].pop("Action").lower().replace(' ', '_')
 
-            try:
-                evt_type = models.ActionType[evt_type_t].value
-            except KeyError:
-                # if an unknown type is received consider this an 'other' event
-                evt_type = models.ActionType['other'].value
-
-            if evt_type == models.ActionType.other:
-                action = event.actions.get(action_type=evt_type, action_type_other=evt_type_t)
-            else:
-                action = event.actions.get(action_type=evt_type)
+            action = get_event_type(event, buffer)
 
             # models.get_variable_name(name=k) is going to be a bottle neck if a variable doesn't already exist
-            for k, v in buf[m].items():
-                variable = models.get_variable_name(name=k)
-                v_filter = models.VariableField.objects.filter(action=action, name=variable)
-                if len(v_filter) <= 0:
-                    fields_create.append(models.VariableField(action=action, name=models.get_variable_name(name=k),
-                                                              value=v))
-                else:
-                    v_filter[0].value = v
-                    fields_update.append(v_filter[0])
-
+            variables_arrays = get_create_and_update_variables(action, buffer)
+            fields_create += variables_arrays[0]
+            fields_update += variables_arrays[1]
         except Exception as e:
-            error = models.Error(mission=mission, file=log_file, line=m,
+            error = models.Error(mission=mission, file=log_file, line=mid,
                                  message=f"ERR: {log_file.file.name} processing variables for $@MID@$: "
-                                         f"{m}", stack_trace=str(e))
+                                         f"{mid}", stack_trace=str(e))
             error.save()
 
     models.VariableField.objects.bulk_create(fields_create)
@@ -849,11 +862,19 @@ def ajax_set_directory(request, mission):
     dir = request.GET['dir']
     f_type = request.GET['type']
 
-    set_directory(mission_id=mission, directory=dir, file_type=f_type)
+    return set_directory(mission_id=mission, directory=dir, file_type=f_type)
 
 
 def set_directory(mission_id, directory, file_type):
     mission = models.Mission.objects.get(pk=mission_id)
+
+    data_dir = mission.mission_directories.filter(file_types__file_type=models.FileType[file_type].value)
+
+    if len(data_dir) > 0:
+        data_dir[0].directory = directory
+        data_dir[0].save()
+
+        return JsonResponse({})
 
     dfd = models.DataFileDirectory(mission=mission, directory=directory)
     dfd.save()

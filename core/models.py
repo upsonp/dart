@@ -283,6 +283,10 @@ class Action(models.Model):
     comment = models.CharField(verbose_name="Comment", max_length=255, blank=True, null=True)
 
 
+# A variable field has a variable name because variable names can be reused. Instead of having 50 variable fields
+# with the name 'Flowmeter Start' taking up DB space we have one Variable Name 'Flowmeter Start' referenced
+# 50 times in the VariableField. Integers take up less space than strings. SimpleLookupName can also be used
+# later on to add bilingual support
 class VariableName(SimpleLookupName):
     pass
 

@@ -184,3 +184,48 @@ class TestElogProcessing(TestCase):
             for att in e['attached']:
                 if len(event.attachments.filter(name=att)) <= 0:
                     self.fail(f"Expected attachment {att} was not added to the database for event {e['event_id']}")
+
+    def test_get_create_variables(self):
+        buffer = {
+            "Flowmeter Start": "2020-06-06 00:00:00",
+            "Flowmeter End": "2020-06-06 00:30:00",
+        }
+        action = cff.ActionFactory()
+        return_array = utils.get_create_and_update_variables(action, buffer)
+
+        # the creation array should contain some data, the update array should not
+        self.assertTrue(len(return_array[0]) > 0)
+        self.assertTrue(len(return_array[1]) <= 0)
+
+        buffer_keys = [k for k in buffer.keys()]
+        for index in range(0, len(return_array)):
+            element = return_array[0][index]
+            variable_name = buffer_keys[index]
+            self.assertEquals(element.name.name, variable_name)
+            self.assertEquals(element.value, buffer[variable_name])
+
+    def test_get_update_variables(self):
+        buffer = {
+            "Flowmeter Start": "2020-06-06 00:00:00",
+            "Flowmeter End": "2020-06-06 00:30:00",
+        }
+
+        buffer_keys = [k for k in buffer.keys()]
+
+        action = cff.ActionFactory()
+
+        for key in buffer_keys:
+            variable_name = cff.VariableNameFactory(name=key)
+            cff.VariableFieldFactory(action=action, name=variable_name, value="2020-05-05 00:00:00")
+
+        return_array = utils.get_create_and_update_variables(action, buffer)
+
+        # the update array should contain some data, the creation array should not
+        self.assertTrue(len(return_array[0]) <= 0)
+        self.assertTrue(len(return_array[1]) > 0)
+
+        for index in range(0, len(return_array)):
+            element = return_array[1][index]
+            variable_name = buffer_keys[index]
+            self.assertEquals(element.name.name, variable_name)
+            self.assertEquals(element.value, buffer[variable_name])

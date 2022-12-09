@@ -32,10 +32,27 @@ class EventViewset(viewsets.ModelViewSet):
     serializer_class = serializers.EventSerializer
 
     def get_queryset(self):
+        queryset = models.Event.objects.all()
         if "mission_id" in self.request.GET:
-            return models.Event.objects.filter(mission_id=self.request.GET['mission_id'])
+            queryset = queryset.filter(mission_id=self.request.GET['mission_id'])
 
-        return models.Event.objects.all()
+        if "event_id" in self.request.GET:
+            queryset = queryset.filter(event_id=self.request.GET['event_id'])
+
+        if "station" in self.request.GET:
+            queryset = queryset.filter(station__name=self.request.GET['station'])
+
+        if "instrument" in self.request.GET:
+            queryset = queryset.filter(instrument__name=self.request.GET['instrument'])
+
+        return queryset
+
+    def destroy(self, request, *args, **kwargs):
+        # if samples are not specifically listed use get_queryset to filter down to what should be deleted
+        sample_set = self.get_queryset()
+        sample_set.delete()
+
+        return JsonResponse({})
 
 
 class ActionViewset(viewsets.ModelViewSet):
