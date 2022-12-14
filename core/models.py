@@ -396,3 +396,7 @@ class ChlSample(Sample):
     def mean_phae(self):
         return numpy.average([c.phae for c in self.bottle.chl_data.all()])
 
+
+class ElogConfig(models.Model):
+    mission = models.OneToOneField(Mission, related_name="elog_config", on_delete=models.CASCADE)
+

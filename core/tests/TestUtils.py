@@ -1,9 +1,10 @@
 from django.test import TestCase, tag
 
 from . import CoreFactoryFloor as cff
-from .. import utils
 
-from .. import models
+from core import utils
+from core.parsers import elog
+from core import models
 
 import os
 
@@ -108,7 +109,7 @@ class TestElogProcessing(TestCase):
     # and create the expected stations and instruments
     def test_process_station_instrument(self):
         log_file = self.mid_map['file']
-        utils.process_stations_instrumnets(log_file, self.mid_map, self.mid_map['buffer'].keys())
+        elog.process_stations_instruments(log_file, self.mid_map, self.mid_map['buffer'].keys())
 
         for s in self.expected_stations:
             if len(models.Station.objects.filter(name=s)) <= 0:
@@ -129,7 +130,7 @@ class TestElogProcessing(TestCase):
             for i in self.expected_instruments])
         # ====================================================================== #
 
-        utils.process_events(self.log_file, self.mid_map, self.mid_map['buffer'].keys())
+        elog.process_events(self.log_file, self.mid_map, self.mid_map['buffer'].keys())
 
         # run through the expected events array and make sure all the elements are in place
         self.verify_events(self.expected_events)
@@ -149,7 +150,7 @@ class TestElogProcessing(TestCase):
 
         self.verify_events(self.alt_events)
 
-        utils.process_events(self.log_file, self.mid_map, self.mid_map['buffer'].keys())
+        elog.process_events(self.log_file, self.mid_map, self.mid_map['buffer'].keys())
 
         self.verify_events(self.expected_events)
 
@@ -162,7 +163,7 @@ class TestElogProcessing(TestCase):
 
         self.create_events_entries(self.expected_events)
 
-        utils.process_attachments_actions_time_location(self.log_file, self.mid_map, self.mid_map['buffer'].keys())
+        elog.process_attachments_actions_time_location(self.log_file, self.mid_map, self.mid_map['buffer'].keys())
 
         for e in self.expected_events:
             event = models.Event.objects.get(mission=self.mission, event_id=e['event_id'])
@@ -191,7 +192,7 @@ class TestElogProcessing(TestCase):
             "Flowmeter End": "2020-06-06 00:30:00",
         }
         action = cff.ActionFactory()
-        return_array = utils.get_create_and_update_variables(action, buffer)
+        return_array = elog.get_create_and_update_variables(action, buffer)
 
         # the creation array should contain some data, the update array should not
         self.assertTrue(len(return_array[0]) > 0)
@@ -218,7 +219,7 @@ class TestElogProcessing(TestCase):
             variable_name = cff.VariableNameFactory(name=key)
             cff.VariableFieldFactory(action=action, name=variable_name, value="2020-05-05 00:00:00")
 
-        return_array = utils.get_create_and_update_variables(action, buffer)
+        return_array = elog.get_create_and_update_variables(action, buffer)
 
         # the update array should contain some data, the creation array should not
         self.assertTrue(len(return_array[0]) <= 0)

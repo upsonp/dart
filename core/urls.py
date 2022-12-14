@@ -1,6 +1,9 @@
 from django.urls import path
 
-from . import views, utils, reports
+from core import views
+from core import utils
+from core import reports
+from core import readers
 
 app_name = 'core'
 
@@ -16,12 +19,12 @@ urlpatterns = [
 
     path('error/<int:pk>/', views.ErrorDetails.as_view(), name="error_details"),
 
-    path('load/', utils.get_files, name="load_files"),
-    path('load/ctd/', utils.get_ctd_files, name="load_ctd_files"),
-    path('load/samples/<int:pk>/', utils.load_samples, name="ajax_load_samples"),
+    path('load/', readers.get_files, name="load_files"),
+    path('load/ctd/', readers.get_ctd_files, name="load_ctd_files"),
+    path('load/samples/<int:pk>/', readers.load_samples, name="ajax_load_samples"),
 
-    path('process/core/', utils.process_elog, name="process_elog"),
-    path('process/ctd/<int:mission_id>/', utils.process_ctd, name="process_ctd"),
+    path('process/core/', readers.process_elog, name="process_elog"),
+    path('process/ctd/<int:mission_id>/', readers.process_ctd, name="process_ctd"),
 
     path('report/core/elog_summary/<int:pk>/', reports.report_elog_summary, name="event_summary_report"),
     path('report/core/profile_summary/<int:pk>/', reports.report_profile_summary, name="profile_summary_report"),
