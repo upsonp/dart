@@ -8,6 +8,27 @@ from core import models
 from core.utils import convertDMS_degs
 
 
+def set_attributes(obj, attr_key, attr):
+    update = False
+    if hasattr(obj, attr_key) and getattr(obj, attr_key) != attr:
+        setattr(obj, attr_key, attr)
+        update = True
+
+    return update
+
+
+def update_attributes(obj, attributes: dict, update_array: dict):
+    update = False
+    keys = attributes.keys()
+    for attr_key in keys:
+        if set_attributes(obj, attr_key, attributes[attr_key]):
+            update = True
+            update_array['fields'].add(attr_key)
+
+    if update:
+        update_array['objects'].append(obj)
+
+
 def read_elog(log_file):
     print(f"Processing {log_file.file.name}")
     file = join(log_file.directory.directory, log_file.file.name)
@@ -32,18 +53,18 @@ def read_elog(log_file):
         mid_map['buffer'][mid_obj] = buffer
 
     mids = mid_map['buffer'].keys()
-    process_stations_instrumnets(log_file, mid_map, mids)
 
-    process_events(log_file, mid_map, mids)
+    elog_config = models.ElogConfig.get_default_elog_config(mission=log_file.directory.mission)
 
-    process_attachments_actions_time_location(log_file, mid_map, mids)
-
-    process_variables(log_file, mid_map, mids)
+    process_stations_instruments(log_file, mid_map, mids, elog_config)
+    process_events(log_file, mid_map, mids, elog_config)
+    process_attachments_actions_time_location(log_file, mid_map, mids, elog_config)
+    process_variables(log_file, mid_map, mids, elog_config)
 
     file_pointer.close()
 
 
-def process_stations_instruments(log_file, mid_map, mids):
+def process_stations_instruments(log_file, mid_map, mids, elog_config):
     mission = log_file.directory.mission
     buff = mid_map['buffer']
 
@@ -54,8 +75,8 @@ def process_stations_instruments(log_file, mid_map, mids):
     instruments = {'added': [], 'models': []}
     for m in mids:
         try:
-            station = buff[m]['Station']
-            instrument = buff[m]['Instrument']
+            station = buff[m][elog_config.station.name]
+            instrument = buff[m][elog_config.instrument.name]
 
             if station not in e_stations and station not in stations['added']:
                 stations['added'].append(station)
@@ -80,16 +101,7 @@ def process_stations_instruments(log_file, mid_map, mids):
     models.Instrument.objects.bulk_create(instruments['models'])
 
 
-def set_attributes(obj, attr_key, attr):
-    update = False
-    if hasattr(obj, attr_key) and getattr(obj, attr_key) != attr:
-        setattr(obj, attr_key, attr)
-        update = True
-
-    return update
-
-
-def process_events(log_file, mid_map, mids):
+def process_events(log_file, mid_map, mids, elog_config):
     mission = log_file.directory.mission
     buf = mid_map['buffer']
 
@@ -97,10 +109,10 @@ def process_events(log_file, mid_map, mids):
 
     p_events = []
     c_events = []
-    u_events = {'events': [], 'fields': []}
+    u_events = {'objects': [], 'fields': set()}
     for m in mids:
         try:
-            event_id = int(buf[m]["Event"])
+            event_id = int(buf[m][elog_config.event.name])
             if event_id in p_events:
                 # if an event has already been processed, don't process it again
                 continue
@@ -108,12 +120,12 @@ def process_events(log_file, mid_map, mids):
             p_events.append(event_id)
 
             # we're done with these objects
-            station_name = buf[m].pop('Station')
-            instrument_name = buf[m].pop('Instrument')
-            sample_id = buf[m].pop('Sample ID')
+            station_name = buf[m].pop(elog_config.station.name)
+            instrument_name = buf[m].pop(elog_config.instrument.name)
+            sample_id = buf[m].pop(elog_config.start_sample_id.name)
             sample_id = sample_id if sample_id != "" else None
 
-            end_sample_id = buf[m].pop('End_Sample_ID')
+            end_sample_id = buf[m].pop(elog_config.end_sample_id.name)
             end_sample_id = end_sample_id if end_sample_id != "" else None
 
             station = models.get_station(name=station_name)
@@ -123,8 +135,6 @@ def process_events(log_file, mid_map, mids):
                 c_events.append(models.Event(mission=mission, event_id=event_id, station=station,
                                              instrument=instrument, sample_id=sample_id, end_sample_id=end_sample_id))
             else:
-                update = False
-
                 attrs = {
                     'station': station,
                     'instrument': instrument,
@@ -133,15 +143,7 @@ def process_events(log_file, mid_map, mids):
                 }
                 e = models.Event.objects.get(mission=mission, event_id=event_id)
 
-                keys = attrs.keys()
-                for attr_key in keys:
-                    if set_attributes(e, attr_key, attrs[attr_key]):
-                        update = True
-                        if attr_key not in u_events['fields']:
-                            u_events['fields'].append(attr_key)
-
-                if update:
-                    u_events['events'].append(e)
+                update_attributes(e, attrs, u_events)
         except Exception as e:
             error = models.Error(mission=mission, file=log_file, line=m,
                                  message=f"ERR: {log_file.file.name} processing events for $@MID@$: "
@@ -150,16 +152,25 @@ def process_events(log_file, mid_map, mids):
 
     models.Event.objects.bulk_create(c_events)
     if u_events['fields']:
-        models.Event.objects.bulk_update(objs=u_events['events'], fields=u_events['fields'])
+        models.Event.objects.bulk_update(objs=u_events['objects'], fields=u_events['fields'])
 
 
-def process_attachments_actions_time_location(log_file, mid_map, mids):
+def get_action(event, buffer, elog_config):
+    event_type_label = buffer.pop(elog_config.action.name).lower().replace(' ', '_')
+
+    if models.ActionType.has_value(event_type_label):
+        return event.actions.get(action_type=models.ActionType[event_type_label])
+
+    return event.actions.get(action_type=models.ActionType.other, action_type_other=event_type_label)
+
+
+def process_attachments_actions_time_location(log_file, mid_map, mids, elog_config):
     mission = log_file.directory.mission
     buf = mid_map['buffer']
 
     instr_sensors = []
     c_actions = []
-    u_actions = {'actions': [], 'fields': []}
+    u_actions = {'objects': [], 'fields': set()}
     cur_event = None
     errors = []
     time_position = None
@@ -172,13 +183,14 @@ def process_attachments_actions_time_location(log_file, mid_map, mids):
             # This date is the date of the last elog update and isn't accurate for recording purpose
             buf[m].pop('Date')
 
-            event_id = buf[m]['Event']
+            event_id = buf[m][elog_config.event.name]
             event = models.Event.objects.get(mission=mission, event_id=event_id)
-            evt_type_t = buf[m]["Action"].lower().replace(' ', '_')
 
-            att_str = buf[m].pop('Attached')
-            time_position = buf[m].pop("Time|Position").split(" | ")
-            comment = buf[m].pop("Comment")
+            att_str = buf[m].pop(elog_config.attached.name)
+            time_position = buf[m].pop(elog_config.time_position.name).split(" | ")
+            comment = buf[m].pop(elog_config.comment.name)
+            action_type_text = buf[m].pop(elog_config.action.name).lower().replace(' ', '_')
+            action_type = models.ActionType.get(action_type_text)
 
             if cur_event != event_id:
                 atts = att_str.split(" | ")
@@ -200,20 +212,9 @@ def process_attachments_actions_time_location(log_file, mid_map, mids):
             lat = convertDMS_degs(time_position[2])
             lon = convertDMS_degs(time_position[3])
 
-            try:
-                evt_type = models.ActionType[evt_type_t].value
-            except KeyError:
-                # if an unknown type is received consider this an 'other' event
-                evt_type = models.ActionType['other'].value
-
             # if an event already contains this action, we'll update it
-            if len(event.actions.filter(action_type=evt_type)) > 0:
-                update = False
-
-                if evt_type == models.ActionType.other:
-                    action = event.actions.get(action_type=evt_type, action_type_other=evt_type_t)
-                else:
-                    action = event.actions.get(action_type=evt_type)
+            if event.actions.filter(action_type=action_type).exists():
+                action = get_action(event, buf, elog_config)
 
                 attrs = {
                     'latitude': lat,
@@ -221,23 +222,14 @@ def process_attachments_actions_time_location(log_file, mid_map, mids):
                     'mid': m,
                     'comment': comment,
                 }
-
-                keys = attrs.keys()
-                for attr_key in keys:
-                    if set_attributes(action, attr_key, attrs[attr_key]):
-                        update = True
-                        if attr_key not in u_actions['fields']:
-                            u_actions['fields'].append(attr_key)
-
-                if update:
-                    u_actions['actions'].append(action)
+                update_attributes(attrs, action, u_actions)
 
             else:
                 action = models.Action(file=log_file, event=event,
                                        date_time=date_time, latitude=lat, longitude=lon,
-                                       mid=m, action_type=evt_type, comment=comment)
-                if evt_type == models.ActionType.other:
-                    action.action_type_other = evt_type_t
+                                       mid=m, action_type=action_type, comment=comment)
+                if action_type == models.ActionType.other:
+                    action.action_type_other = action_type_text
 
                 c_actions.append(action)
         except models.Action.MultipleObjectsReturned as e:
@@ -259,19 +251,7 @@ def process_attachments_actions_time_location(log_file, mid_map, mids):
     models.InstrumentSensor.objects.bulk_create(instr_sensors)
     models.Action.objects.bulk_create(c_actions)
     if u_actions['fields']:
-        models.Action.objects.bulk_update(objs=u_actions['actions'], fields=u_actions['fields'])
-
-
-def get_event_type(event, buffer):
-    event_type_label = buffer.pop("Action").lower().replace(' ', '_')
-
-    try:
-        action = event.actions.get(action_type=models.ActionType[event_type_label])
-    except KeyError:
-        # if an unknown type is received consider this an 'other' event
-        action = event.actions.get(action_type=models.ActionType['other'], action_type_other=event_type_label)
-
-    return action
+        models.Action.objects.bulk_update(objs=u_actions['objects'], fields=u_actions['fields'])
 
 
 def get_create_and_update_variables(action, buffer):
@@ -291,7 +271,7 @@ def get_create_and_update_variables(action, buffer):
     return [variables_to_create, variables_to_update]
 
 
-def process_variables(log_file, mid_map, mids):
+def process_variables(log_file, mid_map, mids, elog_config):
     mission = log_file.directory.mission
     buf = mid_map['buffer']
 
@@ -300,10 +280,10 @@ def process_variables(log_file, mid_map, mids):
     for mid in mids:
         buffer = buf[mid]
         try:
-            event_id = buffer.pop('Event')
+            event_id = buffer.pop(elog_config.event.name)
             event = models.Event.objects.get(mission=mission, event_id=event_id)
 
-            action = get_event_type(event, buffer)
+            action = get_action(event, buffer, elog_config)
 
             # models.get_variable_name(name=k) is going to be a bottle neck if a variable doesn't already exist
             variables_arrays = get_create_and_update_variables(action, buffer)

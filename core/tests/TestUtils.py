@@ -53,6 +53,7 @@ class TestElogProcessing(TestCase):
     mid_map = None
     log_file = None
     mission = None
+    elog_config = None
 
     def setUp(self):
         super().setUp()
@@ -74,6 +75,7 @@ class TestElogProcessing(TestCase):
 
         # this is what the mid mapping from the utils.read_elog function produces.
         self.mid_map = {'file': self.log_file, 'buffer': {i+1: mids[i] for i in range(0, len(mids))}}
+        self.elog_config = models.ElogConfig.get_default_elog_config(self.mission)
 
     def tearDown(self):
         os.remove(self.log_file.file.name)
@@ -93,7 +95,7 @@ class TestElogProcessing(TestCase):
         # run through the expected events array and make sure all the elements are in place
         # and have overridden the original objects
         for e in events:
-            if len(models.Event.objects.filter(mission=self.mission, event_id=e['event_id'])) <= 0:
+            if not models.Event.objects.filter(mission=self.mission, event_id=e['event_id']).exists():
                 self.fail(f"Expected Event {e} was not added to the database")
 
             event = models.Event.objects.get(mission=self.mission, event_id=e['event_id'])
@@ -109,7 +111,7 @@ class TestElogProcessing(TestCase):
     # and create the expected stations and instruments
     def test_process_station_instrument(self):
         log_file = self.mid_map['file']
-        elog.process_stations_instruments(log_file, self.mid_map, self.mid_map['buffer'].keys())
+        elog.process_stations_instruments(log_file, self.mid_map, self.mid_map['buffer'].keys(), self.elog_config)
 
         for s in self.expected_stations:
             if len(models.Station.objects.filter(name=s)) <= 0:
@@ -130,7 +132,7 @@ class TestElogProcessing(TestCase):
             for i in self.expected_instruments])
         # ====================================================================== #
 
-        elog.process_events(self.log_file, self.mid_map, self.mid_map['buffer'].keys())
+        elog.process_events(self.log_file, self.mid_map, self.mid_map['buffer'].keys(), self.elog_config)
 
         # run through the expected events array and make sure all the elements are in place
         self.verify_events(self.expected_events)
@@ -150,7 +152,7 @@ class TestElogProcessing(TestCase):
 
         self.verify_events(self.alt_events)
 
-        elog.process_events(self.log_file, self.mid_map, self.mid_map['buffer'].keys())
+        elog.process_events(self.log_file, self.mid_map, self.mid_map['buffer'].keys(), self.elog_config)
 
         self.verify_events(self.expected_events)
 
@@ -163,7 +165,8 @@ class TestElogProcessing(TestCase):
 
         self.create_events_entries(self.expected_events)
 
-        elog.process_attachments_actions_time_location(self.log_file, self.mid_map, self.mid_map['buffer'].keys())
+        elog.process_attachments_actions_time_location(self.log_file, self.mid_map, self.mid_map['buffer'].keys(),
+                                                       self.elog_config)
 
         for e in self.expected_events:
             event = models.Event.objects.get(mission=self.mission, event_id=e['event_id'])

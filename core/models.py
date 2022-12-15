@@ -33,7 +33,20 @@ class ActionType(models.IntegerChoices):
 
     other = 999, "Other"
 
+    @classmethod
+    def get(cls, value: str):
+        if cls.has_value(value):
+            return cls.__getitem__(value.lower())
 
+        return cls.__getitem__('other')
+
+    @classmethod
+    def has_value(cls, value: str):
+        return cls.__members__.__contains__(value.lower())
+
+
+# Instrument types is a fixed choice list because there is functionality in parsing and validating elog files that
+# depends on what type of instrument is being processed. Therefore new instrument types will have to be added here.
 class InstrumentType(models.IntegerChoices):
     ctd = 1, "CTD"
     ringnet = 2, "RingNet"
@@ -42,6 +55,17 @@ class InstrumentType(models.IntegerChoices):
     vpr = 5, "VPR"
 
     other = 999, "Other"
+
+    @classmethod
+    def get(cls, value: str):
+        if cls.has_value(value):
+            return cls.__getitem__(value.lower())
+
+        return cls.__getitem__('other')
+
+    @classmethod
+    def has_value(cls, value: str):
+        return cls.__members__.__contains__(value.lower())
 
 
 class FileType(models.IntegerChoices):
@@ -123,18 +147,13 @@ def get_station(name):
 
 
 def get_instrument(instrument_name):
-    try:
-        inst_type = InstrumentType[instrument_name.lower()].value
-    except KeyError:
-        # if an unknown type is recieved consider this an 'other' event
-        inst_type = InstrumentType['other'].value
-
+    inst_type = InstrumentType.get(instrument_name.lower()).value
     instr = Instrument.objects.filter(name=instrument_name, instrument_type=inst_type)
-    if not instr:
-        instr = Instrument(name=instrument_name, instrument_type=inst_type)
-        instr.save()
-    else:
-        instr = instr[0]
+    if instr.exists():
+        return instr[0]
+
+    instr = Instrument(name=instrument_name, instrument_type=inst_type)
+    instr.save()
 
     return instr
 
@@ -400,3 +419,34 @@ class ChlSample(Sample):
 class ElogConfig(models.Model):
     mission = models.OneToOneField(Mission, related_name="elog_config", on_delete=models.CASCADE)
 
+    event = models.OneToOneField(VariableName, default="Event", related_name='elog_event', on_delete=models.DO_NOTHING)
+    action = models.OneToOneField(VariableName, default="Action", related_name='elog_action', on_delete=models.DO_NOTHING)
+    station = models.OneToOneField(VariableName, default="Station", related_name='elog_station', on_delete=models.DO_NOTHING)
+    instrument = models.OneToOneField(VariableName, default="Instrument", related_name='elog_instrument', on_delete=models.DO_NOTHING)
+    time_position = models.OneToOneField(VariableName, default="Time|Position", related_name='elog_time_position', on_delete=models.DO_NOTHING)
+    attached = models.OneToOneField(VariableName, default="Attached", related_name='elog_attached', on_delete=models.DO_NOTHING)
+    start_sample_id = models.OneToOneField(VariableName, default="Sample ID", related_name='elog_start_sample_id', on_delete=models.DO_NOTHING)
+    end_sample_id = models.OneToOneField(VariableName, default="End_Sample_ID", related_name='elog_end_sample_id', on_delete=models.DO_NOTHING)
+    comment = models.OneToOneField(VariableName, default="Comment", related_name='elog_comment', on_delete=models.DO_NOTHING)
+
+    @staticmethod
+    def get_default_elog_config(mission):
+        if ElogConfig.objects.filter(mission=mission).exists():
+            return ElogConfig.objects.get(mission=mission)
+
+        event = VariableName.objects.get_or_create(name="Event")[0]
+        action = VariableName.objects.get_or_create(name="Action")[0]
+        station = VariableName.objects.get_or_create(name="Station")[0]
+        instrument = VariableName.objects.get_or_create(name="Instrument")[0]
+        time_position = VariableName.objects.get_or_create(name="Time|Position")[0]
+        attached = VariableName.objects.get_or_create(name="Attached")[0]
+        start_sample_id = VariableName.objects.get_or_create(name="Sample ID")[0]
+        end_sample_id = VariableName.objects.get_or_create(name="End_Sample_ID")[0]
+        comment = VariableName.objects.get_or_create(name="Comment")[0]
+
+        config = ElogConfig(mission=mission, event=event, action=action, station=station, instrument=instrument,
+                            time_position=time_position, attached=attached, start_sample_id=start_sample_id,
+                            end_sample_id=end_sample_id, comment=comment)
+        config.save()
+
+        return config
