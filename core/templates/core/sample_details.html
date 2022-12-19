@@ -54,65 +54,28 @@
                         </span>
                     </button>
                 </li>
-
-                {# Oxygen Tab #}
+                {% for key in tab_keys %}
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="oxy-tab" data-bs-toggle="tab" data-bs-target="#oxy-tab-pane"
-                            type="button" role="tab" aria-controls="oxy-tab-pane" aria-selected="false">
+                    <button class="nav-link" id="{{ key }}-tab" data-bs-toggle="tab" data-bs-target="#{{ key }}-tab-pane"
+                            type="button" role="tab" aria-controls="{{ key }}-tab-pane" aria-selected="false">
                         <span class="btn btn-primary">
-                            <label for="oxy-file" classs="btn btn-primary load-button p-n2">+</label>
+                            <label for="{{ key }}-file" classs="btn btn-primary load-button p-n2">+</label>
                         </span>
-                        Oxygen
-                        <span v-if="loading.oxy" class="loading">
+                        {{key}}
+                        <span v-if="loading.{{ key }}" class="loading">
                             <span class="spinner-border" role="status">
                                 <span class="sr-only"></span>
                             </span>
                         </span>
                     </button>
                 </li>
-
-                {# Salt Tab #}
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="salt-tab" data-bs-toggle="tab" data-bs-target="#salt-tab-pane" type="button"
-                            role="tab" aria-controls="salt-tab-pane" aria-selected="false">
-                        <span class="btn btn-primary">
-                            <label for="salt-file" classs="btn btn-primary load-button">+</label>
-                        </span>
-                        Salts
-                        <span v-if="loading.salt" class="loading">
-                            <span class="spinner-border" role="status">
-                                <span class="sr-only"></span>
-                            </span>
-                        </span>
-                    </button>
-                </li>
-
-                {# CHL Tab #}
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="chl-tab" data-bs-toggle="tab" data-bs-target="#chl-tab-pane" type="button"
-                            role="tab" aria-controls="chl-tab-pane" aria-selected="false">
-                        <span class="btn btn-primary">
-                            <label for="chl-file" classs="btn btn-primary load-button">+</label>
-                        </span>
-                        CHL
-                        <span v-if="loading.chl" class="loading">
-                            <span class="spinner-border" role="status">
-                                <span class="sr-only"></span>
-                            </span>
-                        </span>
-                    </button>
-                </li>
+                {% endfor %}
             </ul>
         </div>
-        <input id="chl-file" type="file" @change="load_file($event, 'chl')" accept=".xlsx,.csv" multiple="True"
+        {% for key in tab_keys %}
+        <input id="{{ key }}-file" type="file" @change="load_file($event, {{ key }})" accept=".xlsx,.csv" multiple="True"
                class="mb-2 invisible"/>
-
-        <input id="oxy-file" type="file" @change="load_file($event, 'oxy')" accept=".xlsx;.csv" multiple="True"
-               class="mb-2 invisible"/>
-
-        <input id="salt-file" type="file" @change="load_file($event, 'salt')" accept=".xlsx" multiple="True"
-               class="mb-2 invisible"/>
-
+        {% endfor %}
 
         <div class="row">
             <div class="tab-content col" id="sample-content">
@@ -197,107 +160,24 @@
                     </div>
                 </div>
                 {# CTD Tab ends #}
-                {# Oxygen Tab starts #}
-                <div class="tab-pane fade" id="oxy-tab-pane" role="tabpanel" aria-labelledby="oxy-tab" tabindex="1">
+                {% for key in tab_keys %}
+                <div class="tab-pane fade" id="{{ key }}-tab-pane" role="tabpanel" aria-labelledby="{{ key }}-tab">
                     <div class="row justify-content-end">
                         <div class="col-auto">
-                            <button class="btn btn-danger" @click="delete_samples('oxy')">Delete</button>
+                            <button class="btn btn-danger" @click="delete_samples('{{ key }}')">Delete</button>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="col">
-                            <div class="table-wrapper-scroll-y vertical-scrollbar">
-                                <table class="table table-striped table-hover table-sm sortable">
-                                    <thead>
-                                    <tr>
-                                        <th>Bottle ID</th>
-                                        <th>Pressure</th>
-                                        <th>Winkler 1</th>
-                                        <th>Winkler 2</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <tr v-for="sample in filtered.oxy">
-                                        <td>${ sample.Sample }</td>
-                                        <td>${ sample.Pressure }</td>
-                                        <td>${ sample.oxy_w_rep1 }</td>
-                                        <td>${ sample.oxy_w_rep2 }</td>
-                                    </tr>
-                                    </tbody>
-                                </table>
+                        <div class="row">
+                            <div class="col">
+                                <div class="table-wrapper-scroll-y vertical-scrollbar">
+                                    {% with 'core/samples/'|add:key|add:".html" as url %}
+                                    {% include url %}
+                                    {% endwith %}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                {# Oxygen Tab ends #}
-                {# Salt Tab starts #}
-                <div class="tab-pane fade" id="salt-tab-pane" role="tabpanel" aria-labelledby="salt-tab" tabindex="2">
-                    <div class="row justify-content-end">
-                        <div class="col-auto">
-                            <button class="btn btn-danger" @click="delete_samples('salt')">Delete</button>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col">
-                            <div class="table-wrapper-scroll-y vertical-scrollbar">
-                                <table class="table table-striped table-hover table-sm sortable">
-                                    <thead>
-                                    <tr>
-                                        <th>Bottle ID</th>
-                                        <th>Pressure</th>
-                                        <th>Sample Date</th>
-                                        <th>Calculated Salinity</th>
-                                        <th>Comments</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <tr v-for="sample in filtered.salt">
-                                        <td>${ sample.Sample }</td>
-                                        <td>${ sample.Pressure }</td>
-                                        <td>${ sample.Sample_Date }</td>
-                                        <td>${ sample.Calculated }</td>
-                                        <td>${ sample.Comments }</td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {# Salt Tab ends #}
-                {# CHL Tab starts #}
-                <div class="tab-pane fade" id="chl-tab-pane" role="tabpanel" aria-labelledby="chl-tab" tabindex="3">
-                    <div class="row justify-content-end">
-                        <div class="col-auto">
-                            <button class="btn btn-danger" @click="delete_samples('chl')">Delete</button>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col">
-                            <div class="table-wrapper-scroll-y vertical-scrollbar">
-                                <table class="table table-striped table-hover table-sm sortable">
-                                    <thead>
-                                    <tr>
-                                        <th>Bottle ID</th>
-                                        <th>Pressure</th>
-                                        <th>mean chl</th>
-                                        <th>mean phae</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    <tr v-for="sample in filtered.chl">
-                                        <td>${ sample.Sample }</td>
-                                        <td>${ sample.Pressure }</td>
-                                        <td>${ sample.mean_chl }</td>
-                                        <td>${ sample.mean_phae }</td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {# CHL Tab ends #}
+                {% endfor %}
             </div>
         </div>
     </div>
@@ -315,7 +195,21 @@
                 processing: [],
                 to_process: [],
 
-                keys: ['ctd', 'oxy', 'salt', 'chl'],
+                // keys are passed in by the sample details view in the views.py file and printed here
+                // this makes adding new variables more modular
+                keys: ['ctd'{% for key in tab_keys %}, '{{ key }}'{% endfor %}],
+                // These are root endpoints other parameters can be added to them
+                endpoints: {
+                    'ctd': {
+                        'get': "{% url 'core-api:ctd-report-list' %}",
+                        'delete': "{% url 'core-api:bottle-list' %}"
+                    }{% for key, value in tab_keys.items %},
+                    '{{ key }}': {
+                        {% for k, v in value.items %}'{{ k }}': '{% url v %}',
+                        {% endfor %}
+                    }{% endfor %}
+                },
+
                 filesToUpload: null,
                 variable_headers: null,
                 interval_id: null,
@@ -323,25 +217,6 @@
                 filter: [],
                 opt_stations: [],
 
-                // These are root endpoints other parameters can be added to them
-                endpoints: {
-                    'ctd': {
-                        'get': "{% url 'core-api:ctd-report-list' %}",
-                        'delete': "{% url 'core-api:bottle-list' %}"
-                    },
-                    'oxy': {
-                        'get': "{% url 'core-api:oxygen-list' %}",
-                        'delete': "{% url 'core-api:oxygen-list' %}",
-                    },
-                    'salt': {
-                        'get': "{% url 'core-api:salt-list' %}",
-                        'delete': "{% url 'core-api:salt-list' %}",
-                    },
-                    'chl': {
-                        'get': "{% url 'core-api:chl-list' %}",
-                        'delete': "{% url 'core-api:chl-list' %}",
-                    }
-                },
                 loading: {},
                 samples: {},
                 filtered: {},

@@ -137,6 +137,12 @@ class SampleDetails(GenericViewMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        context['tab_keys'] = {
+          'oxy': {'get': 'core-api:oxygen-list', 'delete': 'core-api:oxygen-list'},
+          'salt': {'get': 'core-api:salt-list', 'delete': 'core-api:salt-list'},
+          'chl': {'get': 'core-api:chl-list', 'delete': 'core-api:chl-list'},
+          'chn': {'get': '', 'delete': ''},
+        }
         ctd_dir = self.object.mission_directories.filter(file_types__file_type=models.FileType.btl.value)
         context['ctd_dir'] = ctd_dir[0].directory if ctd_dir else ""
 

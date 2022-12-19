@@ -1,0 +1,18 @@
+<table class="table table-striped table-hover table-sm sortable">
+    <thead>
+    <tr>
+        <th>Bottle ID</th>
+        <th>Pressure</th>
+        <th>mean chl</th>
+        <th>mean phae</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr v-for="sample in filtered.chl">
+        <td>${ sample.Sample }</td>
+        <td>${ sample.Pressure }</td>
+        <td>${ sample.mean_chl }</td>
+        <td>${ sample.mean_phae }</td>
+    </tr>
+    </tbody>
+</table>

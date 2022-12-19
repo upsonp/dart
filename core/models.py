@@ -30,19 +30,20 @@ class ActionType(models.IntegerChoices):
     in_water = 8, "In Water"
     start_deployment = 9, "Start Deployment"
     on_bottom = 10, "On Bottom"
+    started = 11, "Started"
 
     other = 999, "Other"
 
     @classmethod
     def get(cls, value: str):
         if cls.has_value(value):
-            return cls.__getitem__(value.lower())
+            return cls.__getitem__(value.lower().replace(' ', '_'))
 
         return cls.__getitem__('other')
 
     @classmethod
     def has_value(cls, value: str):
-        return cls.__members__.__contains__(value.lower())
+        return cls.__members__.__contains__(value.lower().replace(' ', '_'))
 
 
 # Instrument types is a fixed choice list because there is functionality in parsing and validating elog files that
@@ -220,6 +221,7 @@ class Error(models.Model):
     message = models.CharField(verbose_name="Message", max_length=255)
     stack_trace = models.TextField(verbose_name="Stack Trace")
     line = models.IntegerField(verbose_name="Line/Object #")
+    logged = models.DateTimeField(auto_now=True)
 
 
 @receiver(models.signals.pre_save, sender=Error)
@@ -414,6 +416,19 @@ class ChlSample(Sample):
     @property
     def mean_phae(self):
         return numpy.average([c.phae for c in self.bottle.chl_data.all()])
+
+
+class ChnSample(Sample):
+    bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="chn_data", on_delete=models.CASCADE)
+    sample_order = models.IntegerField(verbose_name="Sample Order")
+
+    class Meta:
+        unique_together = ['bottle', 'sample_order']
+
+    volume = models.FloatField(verbose_name="Volume(L)", default=-1.0)
+    carbon = models.FloatField(verbose_name="Carbon(ug/L)", default=-1.0)
+    nitrogen = models.FloatField(verbose_name="Nitrogen(ug/L)", default=-1.0)
+    carbon_nitrogen = models.FloatField(verbose_name="Carbon/Nitrogen", default=-1.0)
 
 
 class ElogConfig(models.Model):
