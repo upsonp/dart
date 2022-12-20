@@ -200,6 +200,11 @@ class PandaChlReport(ChlViewset, PandasViewSet):
         return f"{models.Mission.objects.get(pk=request.query_params['mission']).name}_Chl_Report"
 
 
+class ChnViewset(SampleViewset):
+    model = models.ChnSample
+    serializer_class = serializers.ChnReport
+
+
 class FullSampleViewset(viewsets.ModelViewSet):
     queryset = models.Bottle.objects.all()
     serializer_class = serializers.FullReport

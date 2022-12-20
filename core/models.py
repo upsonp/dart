@@ -425,7 +425,6 @@ class ChnSample(Sample):
     class Meta:
         unique_together = ['bottle', 'sample_order']
 
-    volume = models.FloatField(verbose_name="Volume(L)", default=-1.0)
     carbon = models.FloatField(verbose_name="Carbon(ug/L)", default=-1.0)
     nitrogen = models.FloatField(verbose_name="Nitrogen(ug/L)", default=-1.0)
     carbon_nitrogen = models.FloatField(verbose_name="Carbon/Nitrogen", default=-1.0)
@@ -434,15 +433,15 @@ class ChnSample(Sample):
 class ElogConfig(models.Model):
     mission = models.OneToOneField(Mission, related_name="elog_config", on_delete=models.CASCADE)
 
-    event = models.OneToOneField(VariableName, default="Event", related_name='elog_event', on_delete=models.DO_NOTHING)
-    action = models.OneToOneField(VariableName, default="Action", related_name='elog_action', on_delete=models.DO_NOTHING)
-    station = models.OneToOneField(VariableName, default="Station", related_name='elog_station', on_delete=models.DO_NOTHING)
-    instrument = models.OneToOneField(VariableName, default="Instrument", related_name='elog_instrument', on_delete=models.DO_NOTHING)
-    time_position = models.OneToOneField(VariableName, default="Time|Position", related_name='elog_time_position', on_delete=models.DO_NOTHING)
-    attached = models.OneToOneField(VariableName, default="Attached", related_name='elog_attached', on_delete=models.DO_NOTHING)
-    start_sample_id = models.OneToOneField(VariableName, default="Sample ID", related_name='elog_start_sample_id', on_delete=models.DO_NOTHING)
-    end_sample_id = models.OneToOneField(VariableName, default="End_Sample_ID", related_name='elog_end_sample_id', on_delete=models.DO_NOTHING)
-    comment = models.OneToOneField(VariableName, default="Comment", related_name='elog_comment', on_delete=models.DO_NOTHING)
+    event = models.ForeignKey(VariableName, default="Event", related_name='elog_event', on_delete=models.DO_NOTHING)
+    action = models.ForeignKey(VariableName, default="Action", related_name='elog_action', on_delete=models.DO_NOTHING)
+    station = models.ForeignKey(VariableName, default="Station", related_name='elog_station', on_delete=models.DO_NOTHING)
+    instrument = models.ForeignKey(VariableName, default="Instrument", related_name='elog_instrument', on_delete=models.DO_NOTHING)
+    time_position = models.ForeignKey(VariableName, default="Time|Position", related_name='elog_time_position', on_delete=models.DO_NOTHING)
+    attached = models.ForeignKey(VariableName, default="Attached", related_name='elog_attached', on_delete=models.DO_NOTHING)
+    start_sample_id = models.ForeignKey(VariableName, default="Sample ID", related_name='elog_start_sample_id', on_delete=models.DO_NOTHING)
+    end_sample_id = models.ForeignKey(VariableName, default="End_Sample_ID", related_name='elog_end_sample_id', on_delete=models.DO_NOTHING)
+    comment = models.ForeignKey(VariableName, default="Comment", related_name='elog_comment', on_delete=models.DO_NOTHING)
 
     @staticmethod
     def get_default_elog_config(mission):
