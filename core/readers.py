@@ -64,7 +64,6 @@ def get_ctd_files(request):
 
 
 def process_elog(request):
-    log_files = []
     mission_id = request.GET['mission_id']
     if 'fid' in request.GET:
 

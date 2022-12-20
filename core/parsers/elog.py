@@ -30,6 +30,8 @@ def update_attributes(obj, attributes: dict, update_array: dict):
 
 
 def read_elog(log_file):
+    errors = []
+
     print(f"Processing {log_file.file.name}")
     file = join(log_file.directory.directory, log_file.file.name)
     file_pointer = open(file=file, mode="r")
@@ -54,17 +56,24 @@ def read_elog(log_file):
 
     mids = mid_map['buffer'].keys()
 
-    elog_config = models.ElogConfig.get_default_elog_config(mission=log_file.directory.mission)
+    mission = log_file.directory.mission
 
-    process_stations_instruments(log_file, mid_map, mids, elog_config)
-    process_events(log_file, mid_map, mids, elog_config)
-    process_attachments_actions_time_location(log_file, mid_map, mids, elog_config)
-    process_variables(log_file, mid_map, mids, elog_config)
+    models.Error.objects.filter(mission=mission, file_name=log_file.file.name).delete()
+    elog_config = models.ElogConfig.get_default_elog_config(mission=mission)
+
+    errors += process_stations_instruments(log_file, mid_map, mids, elog_config)
+    errors += process_events(log_file, mid_map, mids, elog_config)
+    errors += process_attachments_actions_time_location(log_file, mid_map, mids, elog_config)
+    errors += process_variables(log_file, mid_map, mids, elog_config)
 
     file_pointer.close()
 
+    models.Error.objects.bulk_create(errors)
+
 
 def process_stations_instruments(log_file, mid_map, mids, elog_config):
+    errors = []
+
     mission = log_file.directory.mission
     buff = mid_map['buffer']
 
@@ -92,16 +101,20 @@ def process_stations_instruments(log_file, mid_map, mids, elog_config):
                 instruments['added'].append(instrument)
                 instruments['models'].append(models.Instrument(name=instrument, instrument_type=inst_type))
         except Exception as e:
-            error = models.Error(mission=mission, file=log_file, line=m,
-                                 message=f"ERR: {log_file.file.name} processing stations and instruments for $@MID@$: "
+            error = models.Error(mission=mission, file_name=log_file.file.name, line=m,
+                                 message=f"Error processing stations and instruments for $@MID@$: "
                                          f"{m}", stack_trace=str(e))
-            error.save()
+            errors.append(error)
 
     models.Station.objects.bulk_create(stations['models'])
     models.Instrument.objects.bulk_create(instruments['models'])
 
+    return errors
+
 
 def process_events(log_file, mid_map, mids, elog_config):
+    errors = []
+
     mission = log_file.directory.mission
     buf = mid_map['buffer']
 
@@ -145,26 +158,28 @@ def process_events(log_file, mid_map, mids, elog_config):
 
                 update_attributes(e, attrs, u_events)
         except Exception as e:
-            error = models.Error(mission=mission, file=log_file, line=m,
-                                 message=f"ERR: {log_file.file.name} processing events for $@MID@$: "
+            error = models.Error(mission=mission, file_name=log_file.file.name, line=m,
+                                 message=f"Error processing events for $@MID@$: "
                                          f"{m}", stack_trace=str(e))
-            error.save()
+            errors.append(error)
 
     models.Event.objects.bulk_create(c_events)
     if u_events['fields']:
         models.Event.objects.bulk_update(objs=u_events['objects'], fields=u_events['fields'])
 
+    return errors
 
-def get_action(event, buffer, elog_config):
-    event_type_label = buffer.pop(elog_config.action.name).lower().replace(' ', '_')
 
+def get_action(event, event_type_label):
     if models.ActionType.has_value(event_type_label):
-        return event.actions.get(action_type=models.ActionType[event_type_label])
+        return event.actions.get(action_type=models.ActionType.get(event_type_label))
 
     return event.actions.get(action_type=models.ActionType.other, action_type_other=event_type_label)
 
 
 def process_attachments_actions_time_location(log_file, mid_map, mids, elog_config):
+    errors = []
+
     mission = log_file.directory.mission
     buf = mid_map['buffer']
 
@@ -172,7 +187,6 @@ def process_attachments_actions_time_location(log_file, mid_map, mids, elog_conf
     c_actions = []
     u_actions = {'objects': [], 'fields': set()}
     cur_event = None
-    errors = []
     time_position = None
     comment = None
     event_id = None
@@ -189,7 +203,7 @@ def process_attachments_actions_time_location(log_file, mid_map, mids, elog_conf
             att_str = buf[m].pop(elog_config.attached.name)
             time_position = buf[m].pop(elog_config.time_position.name).split(" | ")
             comment = buf[m].pop(elog_config.comment.name)
-            action_type_text = buf[m].pop(elog_config.action.name).lower().replace(' ', '_')
+            action_type_text = buf[m][elog_config.action.name]
             action_type = models.ActionType.get(action_type_text)
 
             if cur_event != event_id:
@@ -199,8 +213,8 @@ def process_attachments_actions_time_location(log_file, mid_map, mids, elog_conf
                         if len(models.InstrumentSensor.objects.filter(event=event, name=a)) <= 0:
                             instr_sensors.append(models.InstrumentSensor(event=event, name=a))
         except Exception as e:
-            error = models.Error(mission=mission, file=log_file, line=m,
-                                 message=f"ERR: {log_file.file.name} processing attachments for $@MID@$: {m}",
+            error = models.Error(mission=mission, file=log_file.file.name, line=m,
+                                 message=f"Error processing attachments for $@MID@$: {m}",
                                  stack_trace=str(e))
             errors.append(error)
 
@@ -214,7 +228,7 @@ def process_attachments_actions_time_location(log_file, mid_map, mids, elog_conf
 
             # if an event already contains this action, we'll update it
             if event.actions.filter(action_type=action_type).exists():
-                action = get_action(event, buf, elog_config)
+                action = get_action(event, action_type_text)
 
                 attrs = {
                     'latitude': lat,
@@ -222,7 +236,7 @@ def process_attachments_actions_time_location(log_file, mid_map, mids, elog_conf
                     'mid': m,
                     'comment': comment,
                 }
-                update_attributes(attrs, action, u_actions)
+                update_attributes(action, attrs, u_actions)
 
             else:
                 action = models.Action(file=log_file, event=event,
@@ -233,25 +247,25 @@ def process_attachments_actions_time_location(log_file, mid_map, mids, elog_conf
 
                 c_actions.append(action)
         except models.Action.MultipleObjectsReturned as e:
-            error = models.Error(mission=mission, file=log_file, line=m, error_code=models.ErrorType.duplicate_value,
+            error = models.Error(mission=mission, file_name=log_file.file.name, line=m,
+                                 error_code=models.ErrorType.duplicate_value,
                                  message=f"An event may not contain duplicate actions, Action may be misnamed for "
-                                         f"$@MID@$: {m}: "
-                                         f"{m}", stack_trace=str(e))
+                                         f"$@MID@$: {m}", stack_trace=str(e))
             errors.append(error)
         except Exception as e:
-            error = models.Error(mission=mission, file=log_file, line=m,
-                                 message=f"ERR: {log_file.file.name} processing actions for $@MID@$: "
+            error = models.Error(mission=mission, file_name=log_file.file.name, line=m,
+                                 message=f"Error processing actions for $@MID@$: "
                                          f"{m}", stack_trace=str(e))
             errors.append(error)
 
         cur_event = event_id
 
-    models.Error.objects.bulk_create(errors)
-
     models.InstrumentSensor.objects.bulk_create(instr_sensors)
     models.Action.objects.bulk_create(c_actions)
     if u_actions['fields']:
         models.Action.objects.bulk_update(objs=u_actions['objects'], fields=u_actions['fields'])
+
+    return errors
 
 
 def get_create_and_update_variables(action, buffer):
@@ -272,6 +286,8 @@ def get_create_and_update_variables(action, buffer):
 
 
 def process_variables(log_file, mid_map, mids, elog_config):
+    errors = []
+
     mission = log_file.directory.mission
     buf = mid_map['buffer']
 
@@ -280,20 +296,18 @@ def process_variables(log_file, mid_map, mids, elog_config):
     for mid in mids:
         buffer = buf[mid]
         try:
-            event_id = buffer.pop(elog_config.event.name)
-            event = models.Event.objects.get(mission=mission, event_id=event_id)
-
-            action = get_action(event, buffer, elog_config)
-
+            action = models.Action.objects.get(event__mission=mission, mid=mid)
             # models.get_variable_name(name=k) is going to be a bottle neck if a variable doesn't already exist
             variables_arrays = get_create_and_update_variables(action, buffer)
             fields_create += variables_arrays[0]
             fields_update += variables_arrays[1]
         except Exception as e:
-            error = models.Error(mission=mission, file=log_file, line=mid,
-                                 message=f"ERR: {log_file.file.name} processing variables for $@MID@$: "
+            error = models.Error(mission=mission, file_name=log_file.file.name, line=mid,
+                                 message=f"Error processing variables for $@MID@$: "
                                          f"{mid}", stack_trace=str(e))
-            error.save()
+            errors.append(error)
 
     models.VariableField.objects.bulk_create(fields_create)
     models.VariableField.objects.bulk_update(objs=fields_update, fields=['value'])
+
+    return errors
