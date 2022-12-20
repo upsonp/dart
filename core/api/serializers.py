@@ -282,6 +282,19 @@ class ChlReport(SampleReportSerializer, ChlSerializer):
                   'mean_phae']
 
 
+class ChnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ChnSample
+        fields = ['sample_order', 'carbon', 'nitrogen', 'carbon_nitrogen']
+
+
+class ChnReport(SampleReportSerializer, ChnSerializer):
+    class Meta:
+        model = models.ChnSample
+        fields = ['Name', 'Station', 'Event', 'Sample', 'Pressure', 'sample_order', 'carbon',
+                  'nitrogen', 'carbon_nitrogen']
+
+
 class FullReport(BottleReport):
     oxygen_data = OxygenSerializer(many=True, read_only=True)
     salt_data = SaltSerializer(many=True, read_only=True)

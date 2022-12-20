@@ -16,6 +16,7 @@ router.register(r'bottle', views.BottleViewset, basename='bottle')
 router.register(r'oxygen', views.OxygenViewset, basename='oxygen')
 router.register(r'salt', views.SaltViewset, basename='salt')
 router.register(r'chl', views.ChlViewset, basename='chl')
+router.register(r'chn', views.ChnViewset, basename='chn')
 
 router.register(r'error', views.ErrorViewset, basename='error')
 

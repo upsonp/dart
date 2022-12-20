@@ -10,6 +10,7 @@ from core.parsers import ctd
 from core.parsers import salt
 from core.parsers import oxygen
 from core.parsers import chl
+from core.parsers import chn
 
 
 def get_files(request):
@@ -138,11 +139,13 @@ def load_samples(request, pk):
 
         print(f"Load Start: {fname}")
         if file_type == 'salt':
-            errors += salt.load_salt(pk, files[fname])
+            errors += salt.load_data(pk, files[fname])
         elif file_type == 'oxy':
-            errors += oxygen.load_oxy(pk, files[fname])
+            errors += oxygen.load_data(pk, files[fname])
         elif file_type == 'chl':
-            errors += chl.load_chl(pk, files[fname])
+            errors += chl.load_data(pk, files[fname])
+        elif file_type == 'chn':
+            errors += chn.load_data(pk, files[fname])
         print(f"Load Finished")
 
     return JsonResponse({"errors": [{"pk": e.pk, "msg": e.message, "trace": e.stack_trace} for e in errors]})
