@@ -1,4 +1,6 @@
 from . import parser_utils
+
+import numpy as np
 import numbers
 
 from core import models
@@ -6,7 +8,7 @@ from core import models
 
 # Salts have lots of data, we only care about rows where a Bottle Label is present and is an int.
 # we need Bottle Label, DateTime, Calculated Salinity and Comments
-def parse_dataframe(dataframe) -> [models.SaltSample]:
+def parse_dataframe(file_name, dataframe) -> [models.SaltSample]:
     label_sample_id = "Sample ID"
     label_bottle_id = "Bottle Label"
     label_datetime = "DateTime"
@@ -27,8 +29,10 @@ def parse_dataframe(dataframe) -> [models.SaltSample]:
             date_time = row[label_datetime]
             cal_salinity = row[label_calculated_salinity]
             comments = row[label_comments]
-            sample = models.SaltSample(bottle_id=bottle, sample_date=date_time, sample_id=sample_id,
-                                       calculated_salinity=cal_salinity, comments=comments)
+            sample = models.SaltSample(file=file_name, bottle_id=bottle, sample_date=date_time, sample_id=sample_id,
+                                       calculated_salinity=cal_salinity)
+            if not str(comments) == 'nan':
+                sample.comments = comments
             samples.append(sample)
 
     return samples

@@ -3,7 +3,7 @@ from . import parser_utils
 from core import models
 
 
-def parse_dataframe(dataframe) -> [models.HplcSample]:
+def parse_dataframe(file_name, dataframe) -> [models.HplcSample]:
     # I really hate doing things that require long explanations because it probably means I'm doing something wrong :(
     #
     # I got the list of HPLC variables from the DATA_TYPE_METHOD column in HUD2021185_BCD_d table in the existing AZMP
@@ -23,7 +23,7 @@ def parse_dataframe(dataframe) -> [models.HplcSample]:
     for index in range(number_of_rows):
         row = df.iloc[index]
         bottle_id = int(row[labels[0]])
-        sample = models.HplcSample(bottle_id=bottle_id)
+        sample = models.HplcSample(file=file_name, bottle_id=bottle_id)
         for label_index in range(1, len(labels)):
             label = labels[label_index]
             setattr(sample, labels_attribute_map[label], row[label])

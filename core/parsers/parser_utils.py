@@ -50,7 +50,7 @@ def load_data(mission_id, stream, model, parse_dataframe):
     dataframe = get_dataframe(stream)
 
     # 2. parse the dataframe and create the sample objects
-    samples = parse_dataframe(dataframe)
+    samples = parse_dataframe(file_name, dataframe)
 
     # 3. locate the bottles and associate them with the samples
     errors, create_samples = replace_sample_ids(mission_id, file_name, samples)

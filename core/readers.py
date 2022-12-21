@@ -1,17 +1,33 @@
 import os
+import importlib
+
 from os.path import join
 
 from django.http import JsonResponse
 
 from core import validations
 from core import models
-from core.parsers import elog
-from core.parsers import ctd
-from core.parsers import salt
-from core.parsers import oxygen
-from core.parsers import chl
-from core.parsers import chn
-from core.parsers import hplc
+from core.parsers import ctd, elog
+
+
+def load_samples(request, pk):
+    errors = []
+    file_type = request.GET['type']
+    files = request.FILES
+
+    file_names = files.keys()
+    for fname in file_names:
+        models.Error.objects.filter(file_name=fname).delete()
+
+        print(f"Load Start: {fname}")
+        # The file type should be the same name as the parser to use in the core.parsers package
+        # if it is the parser can be called without a huge if -> elif statement to locate the parser.
+        # This key is set in the core.views.SampleDetails.get_context_data() function
+        module = importlib.import_module(f'core.parsers.{file_type}')
+        errors += module.load_data(pk, files[fname])
+        print(f"Load Finished")
+
+    return JsonResponse({"errors": [{"pk": e.pk, "msg": e.message, "trace": e.stack_trace} for e in errors]})
 
 
 def get_files(request):
@@ -128,27 +144,3 @@ def process_ctd(request, mission_id):
 def post_ctd_validation(ctd_files):
     pass
 
-
-def load_samples(request, pk):
-    errors = []
-    file_type = request.GET['type']
-    files = request.FILES
-
-    file_names = files.keys()
-    for fname in file_names:
-        models.Error.objects.filter(file_name=fname).delete()
-
-        print(f"Load Start: {fname}")
-        if file_type == 'salt':
-            errors += salt.load_data(pk, files[fname])
-        elif file_type == 'oxy':
-            errors += oxygen.load_data(pk, files[fname])
-        elif file_type == 'chl':
-            errors += chl.load_data(pk, files[fname])
-        elif file_type == 'chn':
-            errors += chn.load_data(pk, files[fname])
-        elif file_type == 'hplc':
-            errors += hplc.load_data(pk, files[fname])
-        print(f"Load Finished")
-
-    return JsonResponse({"errors": [{"pk": e.pk, "msg": e.message, "trace": e.stack_trace} for e in errors]})

@@ -4,7 +4,7 @@ from . import parser_utils
 
 
 # CHN is done in pairs and we need I.D., C/L(micrograms/litre), N/L(micrograms/litre) and C/N columns
-def parse_dataframe(dataframe) -> [models.ChnSample]:
+def parse_dataframe(file_name, dataframe) -> [models.ChnSample]:
     label_id = 'I.D.'
     label_carbon = 'C/L(micrograms/litre)'
     label_nitrogen = 'N/L(micrograms/litre)'
@@ -16,11 +16,13 @@ def parse_dataframe(dataframe) -> [models.ChnSample]:
         row1 = df.iloc[index]
         row2 = df.iloc[index+1]
 
-        sample_1 = models.ChnSample(bottle_id=int(row1[label_id]), sample_order=1, carbon=row1[label_carbon],
-                                    nitrogen=row1[label_nitrogen], carbon_nitrogen=row1[label_carbon_nitrogen])
+        sample_1 = models.ChnSample(file=file_name, bottle_id=int(row1[label_id]), sample_order=1,
+                                    carbon=row1[label_carbon], nitrogen=row1[label_nitrogen],
+                                    carbon_nitrogen=row1[label_carbon_nitrogen])
 
-        sample_2 = models.ChnSample(bottle_id=int(row2[label_id]), sample_order=2, carbon=row2[label_carbon],
-                                    nitrogen=row2[label_nitrogen], carbon_nitrogen=row2[label_carbon_nitrogen])
+        sample_2 = models.ChnSample(file=file_name, bottle_id=int(row2[label_id]), sample_order=2,
+                                    carbon=row2[label_carbon], nitrogen=row2[label_nitrogen],
+                                    carbon_nitrogen=row2[label_carbon_nitrogen])
 
         samples.append(sample_1)
         samples.append(sample_2)

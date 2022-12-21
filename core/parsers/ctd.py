@@ -10,8 +10,8 @@ def read_ctd(ctd_file):
         read_btl(ctd_file)
 
 
-def read_btl(btl_file):
-    models.Error.objects.filter(file=btl_file).delete()
+def read_btl(btl_file: models.DataFile):
+    models.Error.objects.filter(file_name=btl_file.file.name).delete()
 
     data_frame = ctd.from_btl(btl_file.file_path)
     mission = btl_file.directory.mission
@@ -100,7 +100,7 @@ def read_btl(btl_file):
             models.Bottle.objects.filter(event=event, bottle_number=bottle_number).delete()
 
         if event.instrument.instrument_type == models.InstrumentType.ctd.value and bottle_id > event.end_sample_id:
-            err = models.Error(mission=mission, file=btl_file, line=(metadata["skiprows"] + row[0]),
+            err = models.Error(mission=mission, file_name=btl_file.file.name, line=(metadata["skiprows"] + row[0]),
                                message=f"Warning: Bottle ID ({bottle_id}) for event {event.event_id} is outside the "
                                        f"ID range {event.sample_id} - {event.end_sample_id}",
                                stack_trace="",

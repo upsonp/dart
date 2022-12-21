@@ -8,7 +8,7 @@ import io
 from core.parsers import parser_utils
 from core.parsers import chn
 from core.parsers import chl
-from core.parsers import oxygen
+from core.parsers import oxy
 from core.parsers import salt
 from core.parsers import hplc
 
