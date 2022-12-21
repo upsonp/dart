@@ -430,6 +430,34 @@ class ChnSample(Sample):
     carbon_nitrogen = models.FloatField(verbose_name="Carbon/Nitrogen", default=-1.0)
 
 
+class HplcSample(Sample):
+    bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="hplc_data", on_delete=models.CASCADE)
+
+    acarot = models.FloatField(verbose_name='ACAROT', blank=True, null=True)
+    allox = models.FloatField(verbose_name='ALLOX', blank=True, null=True)
+    astax = models.FloatField(verbose_name='ASTAX', blank=True, null=True)
+    bcarot = models.FloatField(verbose_name='BCAROT', blank=True, null=True)
+    but19 = models.FloatField(verbose_name='BUT19', blank=True, null=True)
+    butlike = models.FloatField(verbose_name='BUTLIKE', blank=True, null=True)
+    chla = models.FloatField(verbose_name='HPLCHLA', blank=True, null=True)
+    chlb = models.FloatField(verbose_name='CHLB', blank=True, null=True)
+    chlc12 = models.FloatField(verbose_name='CHLC12', blank=True, null=True)
+    chlc3 = models.FloatField(verbose_name='CHLC3', blank=True, null=True)
+    chlidea = models.FloatField(verbose_name='CHLIDEA', blank=True, null=True)
+    diadinox = models.FloatField(verbose_name='DIADINOX', blank=True, null=True)
+    diatox = models.FloatField(verbose_name='DIATOX', blank=True, null=True)
+    fucox = models.FloatField(verbose_name='FUCOX', blank=True, null=True)
+    hex19 = models.FloatField(verbose_name='HEX19', blank=True, null=True)
+    hexlike = models.FloatField(verbose_name='HEXLIKE', blank=True, null=True)
+    hexlike2 = models.FloatField(verbose_name='HEXLIKE2', blank=True, null=True)
+    perid = models.FloatField(verbose_name='PERID', blank=True, null=True)
+    phaeo = models.FloatField(verbose_name='HPLCPHAE', blank=True, null=True)
+    prasinox = models.FloatField(verbose_name='PRASINOX', blank=True, null=True)
+    pyrophae = models.FloatField(verbose_name='PYROPHAE', blank=True, null=True)
+    violax = models.FloatField(verbose_name='VIOLAX', blank=True, null=True)
+    zea = models.FloatField(verbose_name='ZEA', blank=True, null=True)
+
+
 class ElogConfig(models.Model):
     mission = models.OneToOneField(Mission, related_name="elog_config", on_delete=models.CASCADE)
 

@@ -247,6 +247,30 @@ class ChlSampleFactory(SampleFactory):
             ChlSampleFactory(file=file, bottle=bottle, sample_order=2)
 
 
+class ChnSampleFactory(SampleFactory):
+
+    class Meta:
+        model = models.ChnSample
+
+    sample_order = 1
+    carbon = factory.lazy_attribute(lambda o: faker.pyfloat())
+    nitrogen = factory.lazy_attribute(lambda o: faker.pyfloat())
+    carbon_nitrogen = factory.lazy_attribute(lambda o: faker.pyfloat())
+
+    @classmethod
+    def _after_postgeneration(cls, instance, create, results=None):
+        if create and instance.sample_order == 1:
+            file = instance.file
+            bottle = instance.bottle
+            ChnSampleFactory(file=file, bottle=bottle, sample_order=2)
+
+
+class HplcSampleFactory(SampleFactory):
+
+    class Meta:
+        model = models.HplcSample
+
+
 def convert_degs_dms(dd):
     d = int(dd)
     m = float((dd-d)*60.0)

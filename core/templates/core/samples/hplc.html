@@ -3,18 +3,58 @@
     <tr>
         <th>Bottle ID</th>
         <th>Pressure</th>
-        <th>Sample Date</th>
-        <th>Calculated Salinity</th>
-        <th>Comments</th>
+        <th>BUT19</th>
+        <th>HEX19</th>
+        <th>ALLOX</th>
+        <th>ACAROT</th>
+        <th>ASTAX</th>
+        <th>BCAROT</th>
+        <th>BUTLIKE</th>
+        <th>CHLA</th>
+        <th>CHLB</th>
+        <th>CHLC12</th>
+        <th>CHLC3</th>
+        <th>CHLIDEA</th>
+        <th>DIADINOX</th>
+        <th>DIATOX</th>
+        <th>FUCOX</th>
+        <th>HEXLIKE2</th>
+        <th>HEXLIKE</th>
+        <th>PHAE</th>
+        <th>PERID</th>
+        <th>PRASINOX</th>
+        <th>PYROPHAE</th>
+        <th>VIOLAX</th>
+        <th>ZEA</th>
     </tr>
     </thead>
     <tbody>
-    <tr v-for="sample in filtered.salt">
+    <tr v-for="sample in filtered.hplc">
         <td>${ sample.Sample }</td>
         <td>${ sample.Pressure }</td>
-        <td>${ sample.Sample_Date }</td>
-        <td>${ sample.Calculated }</td>
-        <td>${ sample.Comments }</td>
+        <td>${ sample.but19 }</td>
+        <td>${ sample.hex19 }</td>
+        <td>${ sample.allox }</td>
+        <td>${ sample.acarot }</td>
+        <td>${ sample.astax }</td>
+        <td>${ sample.bcarot }</td>
+        <td>${ sample.butlike }</td>
+        <td>${ sample.chla }</td>
+        <td>${ sample.chlb }</td>
+        <td>${ sample.chlc12 }</td>
+        <td>${ sample.chlc3 }</td>
+        <td>${ sample.chlidea }</td>
+        <td>${ sample.diadinox }</td>
+        <td>${ sample.diatox }</td>
+        <td>${ sample.fucox }</td>
+        <td>${ sample.hexlike2 }</td>
+        <td>${ sample.hexlike }</td>
+        <td>${ sample.phaeo }</td>
+        <td>${ sample.perid }</td>
+        <td>${ sample.prasinox }</td>
+        <td>${ sample.pyrophae }</td>
+        <td>${ sample.violax }</td>
+        <td>${ sample.zea }</td>
     </tr>
     </tbody>
 </table>

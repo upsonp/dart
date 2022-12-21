@@ -142,6 +142,7 @@ class SampleDetails(GenericViewMixin, DetailView):
           'salt': {'get': 'core-api:salt-list', 'delete': 'core-api:salt-list'},
           'chl': {'get': 'core-api:chl-list', 'delete': 'core-api:chl-list'},
           'chn': {'get': 'core-api:chn-list', 'delete': 'core-api:chn-list'},
+          'hplc': {'get': 'core-api:hplc-list', 'delete': 'core-api:hplc-list'},
         }
         ctd_dir = self.object.mission_directories.filter(file_types__file_type=models.FileType.btl.value)
         context['ctd_dir'] = ctd_dir[0].directory if ctd_dir else ""
