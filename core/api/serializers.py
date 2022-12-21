@@ -295,6 +295,18 @@ class ChnReport(SampleReportSerializer, ChnSerializer):
                   'nitrogen', 'carbon_nitrogen']
 
 
+class HplcSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.HplcSample
+        fields = [field.attname for field in model._meta.fields[3:]]
+
+
+class HplcReport(SampleReportSerializer, HplcSerializer):
+    class Meta:
+        model = models.HplcSample
+        fields = SampleReportSerializer.Meta.fields + HplcSerializer.Meta.fields
+
+
 class FullReport(BottleReport):
     oxygen_data = OxygenSerializer(many=True, read_only=True)
     salt_data = SaltSerializer(many=True, read_only=True)

@@ -205,6 +205,16 @@ class ChnViewset(SampleViewset):
     serializer_class = serializers.ChnReport
 
 
+class HplcViewset(SampleViewset):
+    model = models.HplcSample
+    serializer_class = serializers.HplcReport
+
+    def get_queryset(self):
+        result = super().get_queryset()
+
+        return result
+
+
 class FullSampleViewset(viewsets.ModelViewSet):
     queryset = models.Bottle.objects.all()
     serializer_class = serializers.FullReport

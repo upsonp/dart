@@ -11,6 +11,7 @@ from core.parsers import salt
 from core.parsers import oxygen
 from core.parsers import chl
 from core.parsers import chn
+from core.parsers import hplc
 
 
 def get_files(request):
@@ -146,6 +147,8 @@ def load_samples(request, pk):
             errors += chl.load_data(pk, files[fname])
         elif file_type == 'chn':
             errors += chn.load_data(pk, files[fname])
+        elif file_type == 'hplc':
+            errors += hplc.load_data(pk, files[fname])
         print(f"Load Finished")
 
     return JsonResponse({"errors": [{"pk": e.pk, "msg": e.message, "trace": e.stack_trace} for e in errors]})
