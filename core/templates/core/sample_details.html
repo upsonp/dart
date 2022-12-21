@@ -58,9 +58,7 @@
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="{{ key }}-tab" data-bs-toggle="tab" data-bs-target="#{{ key }}-tab-pane"
                             type="button" role="tab" aria-controls="{{ key }}-tab-pane" aria-selected="false">
-                        <span class="btn btn-primary">
-                            <label for="{{ key }}-file" classs="btn btn-primary load-button p-n2">+</label>
-                        </span>
+                        <label class="btn btn-primary" for="{{ key }}-file" classs="btn btn-primary load-button">+</label>
                         {{key}}
                         <span v-if="loading.{{ key }}" class="loading">
                             <span class="spinner-border" role="status">
