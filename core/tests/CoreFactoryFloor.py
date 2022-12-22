@@ -183,13 +183,23 @@ class VariableFieldFactory(DjangoModelFactory):
     value = factory.lazy_attribute(lambda o: faker.nam())
 
 
-class SensorFactory(DjangoModelFactory):
+class SensorDetails(DjangoModelFactory):
 
     class Meta:
-        model = models.Sensor
+        model = models.SensorDetails
 
-    name = factory.lazy_attribute(lambda o: faker.name())
     sensor_type = factory.lazy_attribute(lambda o: faker.random.choice(models.SensorType.choices)[0])
+    units = factory.lazy_attribute(lambda o: faker.random.choice(["seconds", "ITS-90, deg C", "S/m", "mg/m^3"])[0])
+
+
+class MissionSensorFactor(DjangoModelFactory):
+
+    class Meta:
+        model = models.MissionSensor
+
+    mission = factory.SubFactory(MissionFactory)
+    column_name = factory.lazy_attribute(lambda o: faker.name())
+    sensor_details = factory.SubFactory(SensorDetails)
     priority = factory.lazy_attribute(lambda o: faker.random.randint(1, 5))
 
 
@@ -199,7 +209,7 @@ class CTDDataFactory(DjangoModelFactory):
         model = models.CTDData
 
     bottle = factory.SubFactory(BottleFactory)
-    sensor = factory.SubFactory(SensorFactory)
+    column_name = factory.SubFactory(MissionSensorFactor)
     value = factory.lazy_attribute(lambda o: faker.pyfloat())
 
 

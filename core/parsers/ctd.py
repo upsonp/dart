@@ -1,5 +1,7 @@
 import ctd
 import re
+
+import pandas
 import pytz
 
 from core import models
@@ -10,77 +12,120 @@ def read_ctd(ctd_file):
         read_btl(ctd_file)
 
 
+def get_event_number(data_frame: pandas.DataFrame) -> int:
+    """retrieve the elog event number this bottle file is attached to"""
+
+    # when a bottle file is read using the ctd package the top part of the file is saved in the _metadata
+    metadata = getattr(data_frame, "_metadata")
+
+    # for the Atlantic Region the last three digits of the bottle file name contains the elog event number
+    event_number = metadata['name'][-3:]
+    return int(event_number)
+
+
+def get_sensor_names(data_frame: pandas.DataFrame, exclude: list = []) -> list:
+    """given a dataframe and a list of columns to exclude, return the remaining column that represent sensors"""
+
+    return [instrument for instrument in data_frame.columns if instrument not in exclude]
+
+
+def get_sensor_details(sensor_name: str) -> [models.SensorType, int, str]:
+    """given a sensor name return [type, priority, UoM]"""
+    sensor_name_parts = re.split("(\d)", sensor_name, 1)
+
+
+def get_sensors(sensors: list) -> list:
+    """give a list of sensor names return a list of sensors that need to be created"""
+
+
+def get_ros_file(btl_file: models.DataFile) -> str:
+    """given a CTD BTL file return the matching ROS file"""
+    dir = btl_file.directory.directory
+    file = btl_file.file.name[:-3] + "ROS"
+
+    return dir + file
+
+
+def _get_units(sensor_description: str) -> [str, str]:
+    """given a sensor description, find, remove and return the uom and remaining string"""
+    uom_pattern = " \\[(.*?)\\]"
+    uom = re.findall(uom_pattern, sensor_description)
+    uom = uom[0] if uom else ""
+    return uom, re.sub(uom_pattern, "", sensor_description)
+
+
+def _get_priority(sensor_description: str) -> [int, str]:
+    """given a sensor description, with units removed, find, remove and return the priority and remaining string"""
+    priority_pattern = ", (\d)"
+    priority = re.findall(priority_pattern, sensor_description)
+    priority = priority[0] if priority else 1
+    return int(priority), re.sub(priority_pattern, "", sensor_description)
+
+
+def _get_sensor_type(sensor_description: str) -> [str, str]:
+    """given a sensor description with priority and units removed return the sensor type and remaining string"""
+    remainder = sensor_description.split(", ")
+    # if the sensor type wasn't in the remaining comma seperated list then it is the first value of the description
+    return remainder[0], ", ".join([remainder[i] for i in range(1, len(remainder)) if len(remainder) > 1])
+
+
+def parse_sensor(sensor: str) -> [str, int, str, str]:
+    """given a sensor description parse out the type, priority and units returning """
+    units, sensor_a = _get_units(sensor)
+    priority, sensor_b = _get_priority(sensor_a)
+    sensor_type, remainder = _get_sensor_type(sensor_b)
+
+    return sensor_type, priority, units, remainder
+
+
+def create_sensors_from_ros_data(mission: models.Mission, exclude_sensors: list, ros_file: str) -> list:
+    """given a ROS file create sensors objects from the config portion of the file"""
+
+    summary = ctd.rosette_summary(ros_file)
+    sensors = re.findall("# name \d+ = (.*?)\n", getattr(summary, '_metadata')['config'])
+
+    existing_sensors = [sensor.column_name for sensor in mission.sensors.all()]
+    mission_sensors = []
+    for sensor in sensors:
+        # [column_name]: [sensor_details]
+        sensor_mapping = re.split(": ", sensor)
+        if sensor_mapping[0] not in exclude_sensors and sensor_mapping[0] not in existing_sensors:
+            sensor_type_string, priority, units, other = parse_sensor(sensor_mapping[1])
+            sensor_type = models.SensorType.get(sensor_type_string)
+            sensor_details = models.SensorDetails.objects.get_or_create(sensor_type=sensor_type,
+                                                                        sensor_type_other=sensor_type_string,
+                                                                        units=units, other=other)[0]
+            new_mission_sensor = models.MissionSensor(mission=mission, column_name=sensor_mapping[0], priority=priority,
+                                                      sensor_details=sensor_details)
+            mission_sensors.append(new_mission_sensor)
+
+    return mission_sensors
+
+
 def read_btl(btl_file: models.DataFile):
     models.Error.objects.filter(file_name=btl_file.file.name).delete()
 
     data_frame = ctd.from_btl(btl_file.file_path)
     mission = btl_file.directory.mission
 
-    metadata = getattr(data_frame, "_metadata")
-    header = metadata['header'].split('\n')
-
-    event_number = None
-
-    for h in header:
-        # this is how the log file event and the bottle file are connected
-        # sadly, it seems NFL region doesn't use an event number the same way ATL region does
-        if 'event_number:' in h.lower():
-            h_str = h.split(":")
-            event_number = h_str[1].strip()
+    event_number = get_event_number(data_frame=data_frame)
 
     event = models.Event.objects.get(mission=mission,
                                      instrument__instrument_type=models.InstrumentType.ctd.value,
-                                     event_id=int(event_number))
-
-    # we only want to use rows in the BTL file marked as 'avg'
-    data_frame = data_frame[data_frame['Statistic'] == 'avg']
-
-    col_headers = []
-    for c in data_frame.columns:
-        col_headers.append(c)
+                                     event_id=event_number)
 
     # These are columns we either have no use for or we will specifically call and use later
     pop = ['Bottle', 'Bottle_', 'Date', 'Statistic', 'PrDM', 'Latitude', 'Longitude']
-    for h in pop:
-        try:
-            b_idx = col_headers.index(h)
-            col_headers.pop(b_idx)
-        except ValueError:
-            # if the label doesn't exists, which might happen in the case of 'Bottle_' a value error is raised
-            pass
+    col_headers = get_sensor_names(data_frame=data_frame, exclude=pop)
 
-    sensors = {'added': [], 'models': []}
-    for h in col_headers:
-        # I've found that sensor columns usually have a naming convention where its xxx#yyy where the number denotes
-        # the primary (0) sensor and the secondary (1) sensor. However, what follows the number is also relevant
-        # to the sensor. Usually what follows the sensor priority denotes the unit. (i.e Sbeox0ML/L vs. Sbeox0V)
-        c_name = re.split("(\d)", h, 1)
+    # we only want to use rows in the BTL file marked as 'avg' in the statistics column
+    data_frame = data_frame[data_frame['Statistic'] == 'avg']
 
-        priority = int(c_name[1]) + 1 if len(c_name) > 1 else None
-        units = c_name[2].lower() if len(c_name) > 2 else None
+    exclude_sensors = ['scan', 'timeS', 'latitude', 'longitude', 'nbf', 'flag']
+    ros_file = get_ros_file(btl_file=btl_file)
+    new_sensors = create_sensors_from_ros_data(mission=mission, exclude_sensors=exclude_sensors, ros_file=ros_file)
 
-        if h not in sensors['added']:
-            sensor = models.Sensor.objects.filter(name=c_name[0])
-            if priority:
-                sensor = sensor.filter(priority=priority)
-
-            if units:
-                sensor = sensor.filter(units=units.lower())
-
-            if len(sensor) <= 0:
-
-                sen = models.Sensor(name=c_name[0])
-                sen.sensor_type = models.get_sensor_type(c_name[0])
-
-                if priority:
-                    sen.priority = priority  # priorty in a sensor name starts counting at zero
-                if units:
-                    sen.units = units
-
-                sensors['added'].append(h)
-                sensors['models'].append(sen)
-
-    models.Sensor.objects.bulk_create(sensors['models'])
+    models.MissionSensor.objects.bulk_create(new_sensors)
 
     b_create = []
     b_update = {"data": [], "fields": []}
