@@ -18,7 +18,9 @@ from core.parsers import ctd as ctd_parser
 class TestCHNParser(TestCase):
 
     model = models.ChnSample
-    sample_file = r'core/tests/sample_data/CHN_sample.xlsx'
+    sample_directory = r'core/tests/sample_data/'
+    sample_file_name = 'CHN_sample.xlsx'
+    sample_file = sample_directory + sample_file_name
     mission = None
     file_pointer = None
 
@@ -45,7 +47,7 @@ class TestCHNParser(TestCase):
     def test_parse_chn(self):
 
         df = parser_utils.get_dataframe(self.file_pointer)
-        samples = chn.parse_dataframe(dataframe=df)
+        samples = chn.parse_dataframe(file_name=self.sample_file_name, dataframe=df)
 
         self.assertGreater(len(samples), 0)
 
@@ -62,7 +64,9 @@ class TestCHNParser(TestCase):
 class TestCHLParser(TestCase):
 
     model = models.ChlSample
-    sample_file = r'core/tests/sample_data/CHL_sample.xlsx'
+    sample_directory = r'core/tests/sample_data/'
+    sample_file_name = 'CHL_sample.xlsx'
+    sample_file = sample_directory + sample_file_name
     mission = None
     file_pointer = None
 
@@ -89,7 +93,7 @@ class TestCHLParser(TestCase):
     def test_parse_chl(self):
 
         df = parser_utils.get_dataframe(self.file_pointer)
-        samples = chl.parse_dataframe(dataframe=df)
+        samples = chl.parse_dataframe(file_name=self.sample_file_name, dataframe=df)
 
         self.assertGreater(len(samples), 0)
 
@@ -107,7 +111,9 @@ class TestCHLParser(TestCase):
 class TestOxyParser(TestCase):
 
     model = models.OxygenSample
-    sample_file = r'core/tests/sample_data/Oxygen_sample.xlsx'
+    sample_directory = r'core/tests/sample_data/'
+    sample_file_name = 'Oxygen_sample.xlsx'
+    sample_file = sample_directory + sample_file_name
     mission = None
     file_pointer = None
 
@@ -134,7 +140,7 @@ class TestOxyParser(TestCase):
     def test_parse_oxy(self):
 
         df = parser_utils.get_dataframe(self.file_pointer)
-        samples = oxy.parse_dataframe(dataframe=df)
+        samples = oxy.parse_dataframe(file_name=self.sample_file_name, dataframe=df)
 
         self.assertGreater(len(samples), 0)
 
@@ -153,7 +159,9 @@ class TestOxyParser(TestCase):
 class TestSaltParser(TestCase):
 
     model = models.SaltSample
-    sample_file = r'core/tests/sample_data/Salts_sample.xlsx'
+    sample_directory = r'core/tests/sample_data/'
+    sample_file_name = 'Salts_sample.xlsx'
+    sample_file = sample_directory + sample_file_name
     mission = None
     file_pointer = None
 
@@ -180,7 +188,7 @@ class TestSaltParser(TestCase):
     def test_parse_salt(self):
 
         df = parser_utils.get_dataframe(self.file_pointer)
-        samples = salt.parse_dataframe(dataframe=df)
+        samples = salt.parse_dataframe(file_name=self.sample_file_name, dataframe=df)
 
         self.assertGreater(len(samples), 0)
 
@@ -198,7 +206,9 @@ class TestSaltParser(TestCase):
 @tag('parsers', 'parsers_hplc')
 class TestHPLCParser(TestCase):
     model = models.HplcSample
-    sample_file = r'core/tests/sample_data/HPLC_sample.xlsx'
+    sample_directory = r'core/tests/sample_data/'
+    sample_file_name = 'HPLC_sample.xlsx'
+    sample_file = sample_directory + sample_file_name
     mission = None
     file_pointer = None
 
@@ -225,7 +235,7 @@ class TestHPLCParser(TestCase):
     def test_parse_hplc(self):
 
         df = parser_utils.get_dataframe(self.file_pointer)
-        samples = hplc.parse_dataframe(dataframe=df)
+        samples = hplc.parse_dataframe(file_name=self.sample_file_name, dataframe=df)
 
         self.assertGreater(len(samples), 0)
 
@@ -245,14 +255,14 @@ class TestHPLCParser(TestCase):
 class TestCtd(TestCase):
     model = models.Bottle
     sample_directory = r'core/tests/sample_data/'
-    sample_file = '185A007.BTL'
-    sample_file_path = sample_directory + sample_file
+    sample_file_name = '185A007.BTL'
+    sample_file = sample_directory + sample_file_name
     mission = None
     dataframe = None
 
     def setUp(self):
         self.mission = core_factory.MissionFactory()
-        self.dataframe = ctd.from_btl(self.sample_file_path)
+        self.dataframe = ctd.from_btl(self.sample_file)
 
     def test_get_event_number(self):
         """Given a CTD dataframe created by the CTD package, acquire a log event number a bottle is attached to"""
@@ -333,7 +343,7 @@ class TestCtd(TestCase):
 
     def test_get_ros_file(self):
         data_file_directory = core_factory.DataFileDirectoryFactory(directory=self.sample_directory)
-        datafile = core_factory.DataFileFactory(directory=data_file_directory, file=self.sample_file,
+        datafile = core_factory.DataFileFactory(directory=data_file_directory, file=self.sample_file_name,
                                                 file_type=models.FileType.btl)
 
         ros_file = ctd_parser.get_ros_file(datafile)

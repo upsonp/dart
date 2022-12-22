@@ -99,7 +99,7 @@ class SensorType(models.IntegerChoices):
 
     @classmethod
     def get(cls, value: str):
-        value = cls.value_trasform(value)
+        value = cls.value_transform(value)
         if cls.has_value(value):
             return cls.__getitem__(value)
 
@@ -107,7 +107,7 @@ class SensorType(models.IntegerChoices):
 
     @classmethod
     def has_value(cls, value: str):
-        value = cls.value_trasform(value)
+        value = cls.value_transform(value)
         return cls.__members__.__contains__(value)
 
 
