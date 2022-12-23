@@ -88,14 +88,14 @@ class SensorType(models.IntegerChoices):
     fluorescence = 9, 'Fluorescence'
     beam_attenuation = 10, 'Beam Attenuation'
     altimeter = 11, 'Altimeter'
-    par_log = 12, 'PAR/Logarithmic'
+    par = 12, 'PAR/Logarithmic'
     turbidity = 13, 'Turbidity'
     spar = 14, 'SPAR/Surface Irradiance'
     other = 99, "other"
 
     @classmethod
-    def value_transform(cls, value: str):
-        return value.replace("/", "_").lower()
+    def value_transform(cls, value: str) -> str:
+        return re.sub("/|\s", "_", value).lower()
 
     @classmethod
     def get(cls, value: str):
