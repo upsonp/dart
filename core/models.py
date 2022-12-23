@@ -88,14 +88,14 @@ class SensorType(models.IntegerChoices):
     fluorescence = 9, 'Fluorescence'
     beam_attenuation = 10, 'Beam Attenuation'
     altimeter = 11, 'Altimeter'
-    par = 12, 'PAR/Logarithmic'
+    par_logarithmic = 12, 'PAR/Logarithmic'
     turbidity = 13, 'Turbidity'
-    spar = 14, 'SPAR/Surface Irradiance'
+    spar_surface_irradiance = 14, 'SPAR/Surface Irradiance'
     other = 99, "other"
 
     @classmethod
     def value_transform(cls, value: str) -> str:
-        return re.sub("/|\s", "_", value).lower()
+        return re.sub("/|\s|-", "_", value).lower()
 
     @classmethod
     def get(cls, value: str):
@@ -127,7 +127,7 @@ class SensorType(models.IntegerChoices):
 #  WetCDOM = Fluorometer, WET Labs, ECO-CDOM
 #  CStarAt0 = Transmissometer, WET Labs, C-Start
 def get_sensor_type(sensor_name):
-    name = sensor_name.lower().replace("-", "_")
+    name = re.sub("/|\s|-", "_", sensor_name).lower()
     if name == 'prdm':
         return SensorType.pressure.value
     elif name == "sbeox":
@@ -159,7 +159,7 @@ def get_sensor_type(sensor_name):
     elif name == "wetcdom":
         return SensorType.fluorescence.value
     else:
-        return SensorType.unknown.value
+        return SensorType.other
 
 
 def __get_lookup__(model, name):
@@ -378,6 +378,9 @@ class Bottle(models.Model):
             sensor__sensor_type=sensor_type,
             sensor__priority=priority)
 
+    class Meta:
+        unique_together = ['event', 'bottle_number']
+
 
 class SensorDetails(models.Model):
     sensor_type = models.IntegerField(verbose_name="Sensor Type", choices=SensorType.choices, default=SensorType.other)
@@ -408,7 +411,7 @@ class MissionSensor(models.Model):
 
 class CTDData(models.Model):
     bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="bottle_data", on_delete=models.CASCADE)
-    column_name = models.ForeignKey(MissionSensor, verbose_name="Sensor", related_name="bottle_data",
+    sensor = models.ForeignKey(MissionSensor, verbose_name="Sensor", related_name="bottle_data",
                                     on_delete=models.DO_NOTHING)
 
     value = models.FloatField(verbose_name="Value")

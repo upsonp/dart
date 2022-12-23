@@ -1,5 +1,5 @@
 import datetime
-import factory
+import shutil
 import numpy
 
 from django.test import TestCase, tag
@@ -42,6 +42,11 @@ class TestDataFileDirectory(TestCase):
 
 @tag("model", "model_datafile")
 class TestDataFile(TestCase):
+
+    def tearDown(self) -> None:
+        # files get created when the DataFileFactory creates a mock file so they have to be removed
+        # or you end up with a ton of empty files.
+        shutil.rmtree("test_temp")
 
     # DataFile describes a file that's been loaded into the system. A Datafile will have a
     # file name, file type (.log, .BTL, .csv, etc) and describe if the file has been processed
@@ -224,11 +229,9 @@ class TestSensor(TestCase):
 
     @tag("create", "create_sensor")
     def test_create_sensor(self):
-        sensor = core_factory.SensorFactory()
+        sensor = core_factory.SensorDetailsFactory()
 
-        self.assertIsNotNone(sensor.name)
         self.assertIsNotNone(sensor.sensor_type)
-        self.assertIsNotNone(sensor.priority)
 
 
 @tag("model", "model_ctddata")

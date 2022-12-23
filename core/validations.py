@@ -78,3 +78,17 @@ def validate_events(log_file):
         models.Error.objects.bulk_create(errors)
 
     return errors
+
+
+def validate_bottle_sample_range(file: str, event: models.Event, bottle_id: int, line: int) -> list[models.Error]:
+    mission = event.mission
+    errors = []
+    if event.instrument.instrument_type == models.InstrumentType.ctd and bottle_id > event.end_sample_id:
+        err = models.Error(mission=mission, file_name=file, line=line,
+                           message=f"Warning: Bottle ID ({bottle_id}) for event {event.event_id} is outside the "
+                                   f"ID range {event.sample_id} - {event.end_sample_id}",
+                           stack_trace="",
+                           error_code=models.ErrorType.bad_id)
+        errors.append(err)
+
+    return errors

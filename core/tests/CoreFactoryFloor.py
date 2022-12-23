@@ -42,7 +42,7 @@ class DataFileFactory(DjangoModelFactory):
 
 class LogFileFactory(DataFileFactory):
 
-    file = factory.django.FileField(filename='2010.log')
+    file = factory.django.FileField(filename='test_temp/2010.log')
     file_type = models.FileType.log.value
     processed = factory.lazy_attribute(lambda o: faker.boolean())
 
@@ -183,7 +183,7 @@ class VariableFieldFactory(DjangoModelFactory):
     value = factory.lazy_attribute(lambda o: faker.nam())
 
 
-class SensorDetails(DjangoModelFactory):
+class SensorDetailsFactory(DjangoModelFactory):
 
     class Meta:
         model = models.SensorDetails
@@ -199,7 +199,7 @@ class MissionSensorFactor(DjangoModelFactory):
 
     mission = factory.SubFactory(MissionFactory)
     column_name = factory.lazy_attribute(lambda o: faker.name())
-    sensor_details = factory.SubFactory(SensorDetails)
+    sensor_details = factory.SubFactory(SensorDetailsFactory)
     priority = factory.lazy_attribute(lambda o: faker.random.randint(1, 5))
 
 
@@ -209,7 +209,7 @@ class CTDDataFactory(DjangoModelFactory):
         model = models.CTDData
 
     bottle = factory.SubFactory(BottleFactory)
-    column_name = factory.SubFactory(MissionSensorFactor)
+    sensor = factory.SubFactory(MissionSensorFactor)
     value = factory.lazy_attribute(lambda o: faker.pyfloat())
 
 

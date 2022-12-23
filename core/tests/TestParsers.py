@@ -1,3 +1,5 @@
+import datetime
+
 from django.test import TestCase, tag
 
 from core import models
@@ -5,6 +7,7 @@ from . import CoreFactoryFloor as core_factory
 
 import io
 import ctd
+import re
 
 from core.parsers import parser_utils
 from core.parsers import chn
@@ -349,27 +352,67 @@ class TestCtd(TestCase):
         ros_file = ctd_parser.get_ros_file(datafile)
         exclude_sensors = ['scan', 'timeS', 'latitude', 'longitude', 'nbf', 'flag']
 
-        new_sensors = ctd_parser.create_sensors_from_ros_data(mission=self.mission, exclude_sensors=exclude_sensors,
-                                                              ros_file=ros_file)
+        new_sensors = ctd_parser.get_new_sensors_from_ros_data(mission=self.mission, exclude_sensors=exclude_sensors,
+                                                               ros_file=ros_file)
         self.assertEquals(len(new_sensors), 14)
 
-        models.MissionSensor.objects.bulk_create(new_sensors)
+        # column_names should all be capitalized
+        for sensor in new_sensors:
+            self.assertTrue(re.match("^[A-Z]", sensor.column_name), "Column names must be in initial caps")
 
-    def ntest_get_sensor_details(self):
-        """Given a string get_sensor_details should return a sensor type, priority and unit of measurement"""
+    def test_get_new_sensors_from_sensor_name(self):
+        sensor_names = ["Sbeox0ML/L", "Sbeox1ML/L", "Sal00", "Sal11", "Potemp090C", "Potemp190C", "Sigma-é00",
+                        "Sigma-é11", "Scan", "TimeS"]
 
-        ctd.rosette_summary()
-        sensor_details = ctd_parser.get_sensor_details('C0S/m')
-        self.assertEquals(sensor_details[0], models.SensorType.conductivity)
-        self.assertEquals(sensor_details[1], 1)
-        self.assertEquals(sensor_details[2], "S/m")
+        new_sensors = ctd_parser.get_new_sensors_from_sensor_name(mission=self.mission, sensors=sensor_names)
 
-        sensor_details = ctd_parser.get_sensor_details('T168C')
-        self.assertEquals(sensor_details[0], models.SensorType.temperature)
-        self.assertEquals(sensor_details[1], 2)
-        self.assertEquals(sensor_details[2], "68C")
+        self.assertEquals(len(new_sensors), 10)
 
-        sensor_details = ctd_parser.get_sensor_details('AltM')
-        self.assertEquals(sensor_details[0], models.SensorType.alt)
-        self.assertEquals(sensor_details[1], 0)  # No priority is given for the altimeter
-        self.assertEquals(sensor_details[2], "M")
+    def test_update_bottle(self):
+        bottle = core_factory.BottleFactory()
+        expected_bottle_id = 777777
+        expected_date_time = datetime.datetime.now()
+        expected_pressure = 6
+        update_fields = {
+            "bottle_id": expected_bottle_id,
+            "date_time": expected_date_time,
+            "pressure": expected_pressure
+        }
+
+        fields = ctd_parser.update_bottle(bottle, update_fields)
+        self.assertIn("bottle_id", fields)
+        self.assertIn("date_time", fields)
+        self.assertIn("pressure", fields)
+
+        self.assertEquals(bottle.bottle_id, expected_bottle_id)
+        self.assertEquals(bottle.date_time, expected_date_time)
+        self.assertEquals(bottle.pressure, expected_pressure)
+
+    def test_process_bottles(self):
+        event_id = ctd_parser.get_event_number(self.dataframe)
+        event = core_factory.CTDEventFactory(event_id=event_id)
+
+        bottles = event.bottles.all()
+        self.assertEquals(len(bottles), 0)
+
+        ctd_parser.process_bottles(file_name=self.sample_file_name, data_frame=self.dataframe, event=event)
+
+        bottles = event.bottles.all()
+        self.assertGreater(len(bottles), 0)
+
+        bottle = bottles[0]
+        expected_bad_date = datetime.datetime.now()
+        bottle_number = bottle.bottle_number
+
+        bottle.date_time = expected_bad_date
+        bottle.bottle_id = 7777
+        bottle.pressure = 0
+        bottle.save()
+
+        ctd_parser.process_bottles(file_name=self.sample_file_name, data_frame=self.dataframe, event=event)
+
+        updated_bottle = event.bottles.get(bottle_number=bottle_number)
+        self.assertNotEqual(updated_bottle.bottle_id, 7777)
+        self.assertNotEqual(updated_bottle.date_time, expected_bad_date)
+        self.assertNotEqual(updated_bottle.pressure, 0)
+
