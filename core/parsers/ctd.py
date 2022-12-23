@@ -32,10 +32,6 @@ def get_sensor_names(data_frame: pandas.DataFrame, exclude: list = []) -> list:
     return [instrument for instrument in data_frame.columns if instrument not in exclude]
 
 
-def get_sensors(sensors: list) -> list:
-    """give a list of sensor names return a list of sensors that need to be created"""
-
-
 def get_ros_file(btl_file: models.DataFile) -> str:
     """given a CTD BTL file return the matching ROS file"""
     dir = btl_file.directory.directory
