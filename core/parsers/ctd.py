@@ -26,18 +26,20 @@ def get_event_number(data_frame: pandas.DataFrame) -> int:
     return int(event_number)
 
 
-def get_sensor_names(data_frame: pandas.DataFrame, exclude: list = []) -> list:
+def get_sensor_names(data_frame: pandas.DataFrame, exclude=None) -> list:
     """given a dataframe and a list of columns to exclude, return the remaining column that represent sensors"""
 
+    if exclude is None:
+        exclude = []
     return [instrument for instrument in data_frame.columns if instrument not in exclude]
 
 
 def get_ros_file(btl_file: models.DataFile) -> str:
     """given a CTD BTL file return the matching ROS file"""
-    dir = btl_file.directory.directory
+    file_dir = btl_file.directory.directory
     file = btl_file.file.name[:-3] + "ROS"
 
-    return os.path.join(dir, file)
+    return os.path.join(file_dir, file)
 
 
 def _get_units(sensor_description: str) -> [str, str]:
@@ -272,5 +274,3 @@ def read_btl(btl_file: models.DataFile):
     process_sensors(btl_file=btl_file, column_headers=col_headers, exclude_sensors=exclude_sensors)
     process_bottles(file_name=btl_file.file.name, event=event, data_frame=data_frame)
     process_data(event=event, data_frame=data_frame, column_headers=col_headers)
-
-
