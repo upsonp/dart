@@ -66,7 +66,7 @@ def validate_ringnet_event(event: models.Event, log_file: models.DataFile) -> li
 
     if '76um' in [attachment.name for attachment in event.attachments.all()]:
         if start_sample_id and not models.Event.objects.filter(instrument__instrument_type=models.InstrumentType.ctd,
-                                                               end_sample_id=end_sample_id).exists():
+                                                             end_sample_id=start_sample_id).exists():
             err = models.Error(
                 mission=mission, file=log_file, file_name=log_file.file, line=mid,
                 message=f"Event {event_id} in file {log_file.file.name} - 76um ringnets must have a sample id "

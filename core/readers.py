@@ -8,7 +8,6 @@ from django.http import JsonResponse
 from core import validations
 from core import models
 from core.parsers import ctd, elog
-from core.validation import ValidateEvents
 
 
 def load_samples(request, pk):
@@ -82,19 +81,6 @@ def get_ctd_files(request):
     return JsonResponse({'action': 'updated'})
 
 
-def validate_events(log_file: models.DataFile):
-    validation_errors = []
-    create_errors = []
-    for event in log_file.events.all():
-        validation_errors += ValidateEvents.validate_event(event)
-        for error in validation_errors:
-            mission = event.mission
-            mid = event.actions.all()[0].mid
-            create_errors.append(models.Error(mission=mission, line=mid, file_name=log_file.file.name,
-                                              error_code=error[0], mesage=error[1]))
-    models.Error.objects.bulk_create(create_errors)
-
-
 def process_elog(request):
     mission_id = request.GET['mission_id']
     if 'fid' in request.GET:
@@ -108,8 +94,7 @@ def process_elog(request):
 
         elog.read_elog(log_file)
 
-        # validations.validate_events(log_file)
-        validate_events(log_file)
+        validations.validate_events(log_file)
 
         errors = models.Error.objects.filter(file=log_file)
         if len(errors) > 0:

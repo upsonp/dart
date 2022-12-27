@@ -2,150 +2,138 @@ from django.test import TestCase, tag
 from . import CoreFactoryFloor as core_factory
 
 from .. import validations
-from core.validation import ValidateEvents
 from .. import models
 
 
-@tag('validation', 'validation_ctd')
-class TestCTDEventValidation(TestCase):
-    ctd_event_valid = None
+@tag('validation')
+class ValidationTest(TestCase):
 
     def setUp(self):
-        self.ctd_event_valid = core_factory.CTDEventFactory(sample_id=495000, end_sample_id=495010, actions=[
+        pass
+
+    def test_validation_start_lt_end_id(self):
+        # this should cause an issue because the sample ID is less than the end sample id.
+        ctd_event = core_factory.CTDEventFactory(sample_id=495100, end_sample_id=495000, actions=[
             models.ActionType.deployed,
             models.ActionType.bottom,
             models.ActionType.recovered
         ])
 
-    def test_ctd_event_sample_id_exists_invalid(self):
-        ctd_event_invalid = core_factory.CTDEventFactory(sample_id=None, end_sample_id=495000, actions=[
+        log_file = ctd_event.actions.get(action_type=models.ActionType.deployed).file
+        errors = validations.validate_events(log_file)
+
+        self.assertGreater(len(errors), 0)
+
+    def test_validation_sample_id_exists(self):
+        # this should cause an issue because the sample ID is missing.
+        ctd_event = core_factory.CTDEventFactory(sample_id=None, end_sample_id=495000, actions=[
             models.ActionType.deployed,
             models.ActionType.bottom,
             models.ActionType.recovered
         ])
+        log_file = ctd_event.actions.get(action_type=models.ActionType.deployed).file
+        errors = validations.validate_events(log_file)
 
-        errors = ValidateEvents.validate_ctd_event(ctd_event_invalid)
-        self.assertIsNotNone(errors)
-        self.assertIs(errors[0][0], models.ErrorType.missing_id)
+        self.assertGreater(len(errors), 0)
 
-    def test_ctd_event_end_sample_id_exists_invalid(self):
-        ctd_event_invalid = core_factory.CTDEventFactory(sample_id=49500, end_sample_id=None, actions=[
+    def test_validation_end_sample_id_exists(self):
+        # this should cause an issue because the end sample ID is missing.
+        ctd_event = core_factory.CTDEventFactory(sample_id=495000, end_sample_id=None, actions=[
             models.ActionType.deployed,
             models.ActionType.bottom,
             models.ActionType.recovered
         ])
+        log_file = ctd_event.actions.get(action_type=models.ActionType.deployed).file
+        errors = validations.validate_events(log_file)
 
-        errors = ValidateEvents.validate_ctd_event(ctd_event_invalid)
-        self.assertIsNotNone(errors)
-        self.assertEquals(errors[0][0], models.ErrorType.missing_id)
+        self.assertGreater(len(errors), 0)
 
-    def test_ctd_event_id_range_invalid(self):
-        """ invalid if sample_id is greater than end_sample_id """
-        ctd_event_invalid = core_factory.CTDEventFactory(sample_id=495010, end_sample_id=495000, actions=[
+    def test_validation_start_and_end_sample_id_exists(self):
+        # this should cause an issue because both the sample ID and end sample id are missing.
+        ctd_event = core_factory.CTDEventFactory(sample_id=None, end_sample_id=None, actions=[
             models.ActionType.deployed,
             models.ActionType.bottom,
             models.ActionType.recovered
         ])
+        log_file = ctd_event.actions.get(action_type=models.ActionType.deployed).file
+        errors = validations.validate_events(log_file)
 
-        errors = ValidateEvents.validate_ctd_event(ctd_event_invalid)
-        self.assertIsNotNone(errors)
-        self.assertEquals(errors[0][0], models.ErrorType.bad_id)
+        self.assertEquals(len(errors), 2)
 
-    def test_ctd_event_id_range_ids_equal_invalid(self):
-        """ should also be invalid if sample_id is equal to the end_sample_id """
-        ctd_event_invalid = core_factory.CTDEventFactory(sample_id=495000, end_sample_id=495000, actions=[
+    def test_validation_ring_net_202(self):
+        # 202 or 76 should be present as an attachment to a ringnet
+        # 202 ringnets correspond to CTD Bottom sample id
+
+        expected_sample_id = 495000
+        expected_end_id = 495024
+        ctd_event = core_factory.CTDEventFactory(sample_id=expected_sample_id, end_sample_id=expected_end_id)
+
+        ringnet_event_good = core_factory.RingnetEventFactory(sample_id=expected_sample_id,
+                                                              actions=[
+                                                         models.ActionType.deployed,
+                                                         models.ActionType.bottom,
+                                                         models.ActionType.recovered
+                                                     ])
+
+        core_factory.RingnetInstrumentSensorFactory(event=ringnet_event_good, name="202um")
+
+        log_file = ringnet_event_good.actions.get(action_type=models.ActionType.deployed).file
+
+        errors = validations.validate_events(log_file)
+        self.assertEquals(len(errors), 0)
+
+        ringnet_event_bad = core_factory.RingnetEventFactory(sample_id=295000, actions=[
+                                                         models.ActionType.deployed,
+                                                         models.ActionType.bottom,
+                                                         models.ActionType.recovered
+                                                     ])
+        log_file = ringnet_event_bad.actions.get(action_type=models.ActionType.deployed).file
+
+        errors = validations.validate_events(log_file)
+        self.assertEquals(len(errors), 1)
+        self.assertEquals(errors[0].message, f"Event {ringnet_event_bad.event_id} in file {log_file.file.name} does not "
+                                             f"specify the type of net used as an attachment")
+
+        core_factory.RingnetInstrumentSensorFactory(event=ringnet_event_bad, name="202um")
+
+        errors = validations.validate_events(log_file)
+        self.assertEquals(errors[0].message, f"Event {ringnet_event_bad.event_id} in file {log_file.file.name} - "
+                                             f"202um ringnets must have a sample id corresponding to a CTD bottom id")
+
+    def test_validation_ring_net_76(self):
+        # 202 or 76 should be present as an attachment to a ringnet
+        # 202 ringnets correspond to CTD Bottom sample id
+
+        expected_sample_id = 495000
+        expected_end_id = 495024
+        ctd_event = core_factory.CTDEventFactory(sample_id=expected_sample_id, end_sample_id=expected_end_id)
+
+        ringnet_event_good = core_factory.RingnetEventFactory(sample_id=expected_end_id, actions=[
             models.ActionType.deployed,
             models.ActionType.bottom,
             models.ActionType.recovered
         ])
+        core_factory.RingnetInstrumentSensorFactory(event=ringnet_event_good, name="76um")
 
-        errors = ValidateEvents.validate_ctd_event(ctd_event_invalid)
-        self.assertIsNotNone(errors)
-        self.assertEquals(errors[0][0], models.ErrorType.bad_id)
+        log_file = ringnet_event_good.actions.get(action_type=models.ActionType.deployed).file
 
-    def test_ctd_event_id_range_valid(self):
-        """ valid if sample_id is less than end_sample_id """
-        self.assertListEqual(ValidateEvents.validate_ctd_event(self.ctd_event_valid), [])
+        errors = validations.validate_events(log_file)
+        self.assertEquals(len(errors), 0)
 
-    def test_event_validation_factory(self):
-        errors = []
-        ctd_sample_ids_equal_invalid = core_factory.CTDEventFactory(sample_id=495000, end_sample_id=495000, actions=[
+        ringnet_event_bad = core_factory.RingnetEventFactory(sample_id=295000, actions=[
             models.ActionType.deployed,
             models.ActionType.bottom,
             models.ActionType.recovered
         ])
+        log_file = ringnet_event_bad.actions.get(action_type=models.ActionType.deployed).file
 
-        ctd_missing_end_sample_id_invalid = core_factory.CTDEventFactory(sample_id=49500, end_sample_id=None, actions=[
-            models.ActionType.deployed,
-            models.ActionType.bottom,
-            models.ActionType.recovered
-        ])
+        errors = validations.validate_events(log_file)
+        self.assertEquals(len(errors), 1)
+        self.assertEquals(errors[0].message, f"Event {ringnet_event_bad.event_id} in file {log_file.file.name} does not"
+                                             f" specify the type of net used as an attachment")
 
-        ctd_missing_sample_id_invalid = core_factory.CTDEventFactory(sample_id=49500, end_sample_id=None, actions=[
-            models.ActionType.deployed,
-            models.ActionType.bottom,
-            models.ActionType.recovered
-        ])
+        core_factory.RingnetInstrumentSensorFactory(event=ringnet_event_bad, name="76um")
 
-        errors += ValidateEvents.validate_ctd_event(ctd_sample_ids_equal_invalid)
-        errors += ValidateEvents.validate_ctd_event(ctd_missing_end_sample_id_invalid)
-        errors += ValidateEvents.validate_ctd_event(ctd_missing_sample_id_invalid)
-        errors += ValidateEvents.validate_ctd_event(self.ctd_event_valid)
-
-        self.assertEquals(len(errors), 3)
-
-
-@tag('validation', 'validation_net')
-class TestNetEventValidation(TestCase):
-
-    valid_sample_id = 495000
-    valid_end_sample_id = 495010
-    valid_ctd_event = None
-    valid_202_net_event = None
-
-    def setUp(self):
-        self.valid_ctd_event = core_factory.CTDEventFactory(sample_id=self.valid_sample_id,
-                                                            end_sample_id=self.valid_end_sample_id)
-
-        self.valid_202_net_event = core_factory.RingnetEventFactory(sample_id=self.valid_sample_id)
-        core_factory.RingnetInstrumentSensorFactory(event=self.valid_202_net_event, name="202um")
-
-        self.valid_76_net_event = core_factory.RingnetEventFactory(sample_id=self.valid_end_sample_id)
-        core_factory.RingnetInstrumentSensorFactory(event=self.valid_76_net_event, name="76um")
-
-    def test_validate_net_event_missing_sample_and_attachment_invalid(self):
-        # no sample_id, no 202 or 76 Attachment, No CTD event
-        net_event = core_factory.RingnetEventFactory(sample_id=None)
-
-        errors = ValidateEvents.validate_net_event(net_event=net_event)
-
-        self.assertIsNotNone(errors)
-        self.assertEquals(errors[0][0], models.ErrorType.missing_id)
-        self.assertEquals(errors[1][0], models.ErrorType.missing_information)
-        # without a valid ctd and/or net attachment
-
-    def test_validate_net_event_202_bad_id_invalid(self):
-        # 202 no ctd event
-        net_event = core_factory.RingnetEventFactory(sample_id=800_000)
-        core_factory.RingnetInstrumentSensorFactory(event=net_event, name="202um")
-
-        errors = ValidateEvents.validate_net_event(net_event=net_event)
-        self.assertIsNotNone(errors)
-        self.assertEquals(errors[0][0], models.ErrorType.bad_id)
-
-    def test_validate_net_event_76_bad_id_invalid(self):
-        # 76 no ctd event
-        net_event = core_factory.RingnetEventFactory(sample_id=800_000)
-        core_factory.RingnetInstrumentSensorFactory(event=net_event, name="76um")
-
-        errors = ValidateEvents.validate_net_event(net_event=net_event)
-        self.assertIsNotNone(errors)
-        self.assertEquals(errors[0][0], models.ErrorType.bad_id)
-
-    def test_validate_net_event_202_valid(self):
-        errors = ValidateEvents.validate_net_event(net_event=self.valid_202_net_event)
-        self.assertListEqual(errors, [])
-
-    def test_validate_net_event_76_valid(self):
-        errors = ValidateEvents.validate_net_event(net_event=self.valid_76_net_event)
-        self.assertListEqual(errors, [])
+        errors = validations.validate_events(log_file)
+        self.assertEquals(errors[0].message, f"Event {ringnet_event_bad.event_id} in file {log_file.file.name} - "
+                                             f"76um ringnets must have a sample id corresponding to a CTD surface id")
