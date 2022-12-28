@@ -72,10 +72,11 @@ class InstrumentType(models.IntegerChoices):
 class FileType(models.IntegerChoices):
     log = 1, ".LOG"
     btl = 2, ".BTL"
+    ros = 3, ".ROS"
 
 
 class SensorType(models.IntegerChoices):
-    unknown = 0, "Unknown"
+
     pressure = 1, "Pressure"
     temperature = 2, "Temperature"
     salinity = 3, "Salinity"
@@ -85,16 +86,48 @@ class SensorType(models.IntegerChoices):
     conductivity = 7, "Conductivity"
     ph = 8, "Ph"
     fluorescence = 9, 'Fluorescence'
-    turw = 10, 'CStarAt'
-    alt = 11, 'Altimeter'
-    par = 12, 'Par'
+    beam_attenuation = 10, 'Beam Attenuation'
+    altimeter = 11, 'Altimeter'
+    par_logarithmic = 12, 'PAR/Logarithmic'
+    turbidity = 13, 'Turbidity'
+    spar_surface_irradiance = 14, 'SPAR/Surface Irradiance'
     other = 99, "other"
+
+    @classmethod
+    def value_transform(cls, value: str) -> str:
+        return re.sub("/|\s|-", "_", value).lower()
+
+    @classmethod
+    def get(cls, value: str):
+        value = cls.value_transform(value)
+        if cls.has_value(value):
+            return cls.__getitem__(value)
+
+        return cls.__getitem__('other')
+
+    @classmethod
+    def has_value(cls, value: str):
+        value = cls.value_transform(value)
+        return cls.__members__.__contains__(value)
 
 
 # we're going to make or best guess on what the sensor type is based on names me know.
 # in the future as we build up a repo of sensors this will be unnecessary
+#
+# NOTE: I've been going about this the wrong way. Sensor names are camel case, not just separated by a number
+#       representing the sensor priority
+# AltM = altimeter (M)
+# PrDM = Pressure (DM)
+# Sbeox0ML/L = SBE Oxygen, 0=primary, (ML/L)
+# TimeS = Time (S)
+# FlSPuv0 = fluorescence, (SP = spectrum) uv
+#
+# Exceptions:
+#  TurbWETbb0 = Turbidity, WET Labs, ECO-BB
+#  WetCDOM = Fluorometer, WET Labs, ECO-CDOM
+#  CStarAt0 = Transmissometer, WET Labs, C-Start
 def get_sensor_type(sensor_name):
-    name = sensor_name.lower().replace("-", "_")
+    name = re.sub("/|\s|-", "_", sensor_name).lower()
     if name == 'prdm':
         return SensorType.pressure.value
     elif name == "sbeox":
@@ -126,7 +159,7 @@ def get_sensor_type(sensor_name):
     elif name == "wetcdom":
         return SensorType.fluorescence.value
     else:
-        return SensorType.unknown.value
+        return SensorType.other
 
 
 def __get_lookup__(model, name):
@@ -282,7 +315,7 @@ class Event(models.Model):
 
 # In reality a sensor is physically attached to an instrument, but depending on a station's depth a sensor might be
 # removed. The Ph sensor for example is only rated to 1,200m, if a station is deeper than that the Ph sensor has to be
-# removed. In which case it makes more 'database' sense to attache the sensor to an event.
+# removed. In which case it makes more 'database' sense to attached the sensor to an event.
 class InstrumentSensor(models.Model):
     event = models.ForeignKey(Event, verbose_name="Event", related_name="attachments", on_delete=models.CASCADE)
     name = models.CharField(verbose_name="Attachment Name", max_length=50)
@@ -345,26 +378,42 @@ class Bottle(models.Model):
             sensor__sensor_type=sensor_type,
             sensor__priority=priority)
 
+    class Meta:
+        unique_together = ['event', 'bottle_number']
 
-class Sensor(models.Model):
-    name = models.TextField(verbose_name="Sensor Name")
-    sensor_type = models.IntegerField(verbose_name="Sensor Type", choices=SensorType.choices,
-                                      default=SensorType.unknown.value)
-    priority = models.IntegerField(verbose_name="Priority", default=1,
-                                   help_text="1 = primary sensor, 2 = secondary sensor, 3 = tertiary, etc.")
-    units = models.CharField(verbose_name="Units", blank=True, null=True, max_length=10)
+
+class SensorDetails(models.Model):
+    sensor_type = models.IntegerField(verbose_name="Sensor Type", choices=SensorType.choices, default=SensorType.other)
+    sensor_type_other = models.CharField(verbose_name="Other Sensor Type", max_length=100, blank=True, null=True)
+    units = models.CharField(verbose_name="Units", blank=True, null=True, max_length=40)
+
+    other = models.TextField(verbose_name="Other Information", blank=True, null=True)
 
     def __str__(self):
-        return self.name + (f'({self.units})' if self.units else "")
+        return f'{SensorType(self.sensor_type).label} [{self.units}]'
+
+
+class MissionSensor(models.Model):
+    mission = models.ForeignKey(Mission, verbose_name="Mission", related_name="sensors", on_delete=models.CASCADE)
+    column_name = models.CharField(verbose_name="Column Name", max_length=20)
+    priority = models.IntegerField(verbose_name="Priority", default=1,
+                                   help_text="1 = primary sensor, 2 = secondary sensor, 3 = tertiary, etc.")
+
+    sensor_details = models.ForeignKey(SensorDetails, verbose_name="Sensor Details", related_name="sensors",
+                                       on_delete=models.DO_NOTHING)
+
+    def __str__(self):
+        return f'{self.column_name}: {self.sensor_details}'
 
     class Meta:
-        unique_together = ['name', 'priority', 'units']
+        unique_together = ['mission', 'column_name']
 
 
 class CTDData(models.Model):
     bottle = models.ForeignKey(Bottle, verbose_name="Bottle", related_name="bottle_data", on_delete=models.CASCADE)
-    sensor = models.ForeignKey(Sensor, verbose_name="Column Heading", related_name="bottle_data",
-                               on_delete=models.DO_NOTHING)
+    sensor = models.ForeignKey(MissionSensor, verbose_name="Sensor", related_name="bottle_data",
+                                    on_delete=models.DO_NOTHING)
+
     value = models.FloatField(verbose_name="Value")
 
 

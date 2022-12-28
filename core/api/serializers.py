@@ -161,8 +161,8 @@ class CTDReportSerializer(serializers.ModelSerializer):
         fields = ['headers', 'bottles']
 
     def get_headers(self, instance):
-        self.__headers = models.Sensor.objects.filter(bottle_data__bottle__event__mission=instance).distinct()
-        return [{"header": (h.name + (f"({h.units})" if h.units else "")), "data":
+        self.__headers = instance.sensors.all().distinct()
+        return [{"header": (h.column_name + (f" ({h.sensor_details.units})" if h.sensor_details.units else "")), "data":
                 [d.value for d in h.bottle_data.all().order_by("bottle__event__station_id")]}
                 for h in self.__headers]
 
