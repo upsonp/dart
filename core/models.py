@@ -315,7 +315,7 @@ class Event(models.Model):
 
 # In reality a sensor is physically attached to an instrument, but depending on a station's depth a sensor might be
 # removed. The Ph sensor for example is only rated to 1,200m, if a station is deeper than that the Ph sensor has to be
-# removed. In which case it makes more 'database' sense to attache the sensor to an event.
+# removed. In which case it makes more 'database' sense to attached the sensor to an event.
 class InstrumentSensor(models.Model):
     event = models.ForeignKey(Event, verbose_name="Event", related_name="attachments", on_delete=models.CASCADE)
     name = models.CharField(verbose_name="Attachment Name", max_length=50)
