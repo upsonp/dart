@@ -49,13 +49,13 @@ class TestCHNParser(TestCase):
 
     def test_parse_chn(self):
 
-        df = parser_utils.get_dataframe(self.file_pointer)
+        df = parser_utils.get_dataframe(self.file_pointer, chn.CHN_REQUIRED_HEADERS)
         samples = chn.parse_dataframe(file_name=self.sample_file_name, dataframe=df)
 
         self.assertGreater(len(samples), 0)
 
     def test_get_dataframe(self):
-        df = parser_utils.get_dataframe(self.file_pointer)
+        df = parser_utils.get_dataframe(self.file_pointer, chn.CHN_REQUIRED_HEADERS)
         expected_headers = ["I.D.", "VOLUME(L)", "CARBON(micrograms)", "POC_QC", "NITROGEN(micrograms)", "PON_QC",
                             "C/L(micrograms/litre)", "POC_QC.1", "N/L(micrograms/litre)", "PON_QC.1",  "C/N"]
         self.assertIsNotNone(df)
@@ -95,13 +95,13 @@ class TestCHLParser(TestCase):
 
     def test_parse_chl(self):
 
-        df = parser_utils.get_dataframe(self.file_pointer)
+        df = parser_utils.get_dataframe(self.file_pointer, chl.CHL_REQUIRED_HEADERS)
         samples = chl.parse_dataframe(file_name=self.sample_file_name, dataframe=df)
 
         self.assertGreater(len(samples), 0)
 
     def test_get_dataframe(self):
-        df = parser_utils.get_dataframe(self.file_pointer)
+        df = parser_utils.get_dataframe(self.file_pointer, chl.CHL_REQUIRED_HEADERS)
         expected_headers = ["I.D.", "VOLUME", "RANGE", "Rb", "Ra", "Rb.1", "Ra.1", "CAL.COEF", "CHL.", "PHAE.", "C+P",
                             "CHL/P.", "MEAN C", "MEAN P"]
 
@@ -142,13 +142,13 @@ class TestOxyParser(TestCase):
 
     def test_parse_oxy(self):
 
-        df = parser_utils.get_dataframe(self.file_pointer)
+        df = parser_utils.get_dataframe(self.file_pointer, oxy.OXY_REQUIRED_HEADERS)
         samples = oxy.parse_dataframe(file_name=self.sample_file_name, dataframe=df)
 
         self.assertGreater(len(samples), 0)
 
     def test_get_dataframe(self):
-        df = parser_utils.get_dataframe(self.file_pointer)
+        df = parser_utils.get_dataframe(self.file_pointer, oxy.OXY_REQUIRED_HEADERS)
         expected_headers = ["Sample", "Bottle#", "O2_Concentration(ml/l)", "O2_Uncertainty(ml/l)", "Titrant_volume(ml)",
                             "Titrant_uncertainty(ml)", "Analysis_date", "Data_file", "Standards(ml)", "Blanks(ml)", "Bottle_volume(ml)",
                             "Initial_transmittance(%%)", "Standard_transmittance0(%%)", "Comments"]
@@ -190,13 +190,13 @@ class TestSaltParser(TestCase):
 
     def test_parse_salt(self):
 
-        df = parser_utils.get_dataframe(self.file_pointer)
+        df = parser_utils.get_dataframe(self.file_pointer, salt.SALT_REQUIRED_HEADERS)
         samples = salt.parse_dataframe(file_name=self.sample_file_name, dataframe=df)
 
         self.assertGreater(len(samples), 0)
 
     def test_get_dataframe(self):
-        df = parser_utils.get_dataframe(self.file_pointer)
+        df = parser_utils.get_dataframe(self.file_pointer, salt.SALT_REQUIRED_HEADERS)
         expected_headers = ["Sample ID", "Reading #", "Value #", "Bottle Label", "DateTime", "Bath Temperature",
                             "Uncorrected Ratio", "Uncorrected Ratio StandDev", "Correction", "Adjusted Ratio",
                             "Calculated Salinity", "Salinity_QC", "Calculated Salinity StandDev", "Comments"]
@@ -237,13 +237,13 @@ class TestHPLCParser(TestCase):
 
     def test_parse_hplc(self):
 
-        df = parser_utils.get_dataframe(self.file_pointer)
+        df = parser_utils.get_dataframe(self.file_pointer, hplc.HPLC_REQUIRED_HEADERS)
         samples = hplc.parse_dataframe(file_name=self.sample_file_name, dataframe=df)
 
         self.assertGreater(len(samples), 0)
 
     def test_get_dataframe(self):
-        df = parser_utils.get_dataframe(self.file_pointer)
+        df = parser_utils.get_dataframe(self.file_pointer, hplc.HPLC_REQUIRED_HEADERS)
         expected_headers = ["ID", "DEPTH", "BUT19", "HEX19", "ALLOX", "ACAROT", "ASTAX", "BCAROT", "BUTLIKE", "CHLB",
                             "CHLC12", "CHLC3", "CHLIDEA", "DIADINOX", "DIATOX", "FUCOX", "HEXLIKE2", "HEXLIKE",
                             "HPLCHLA", "HPLCPHAE", "PERID", "PRASINOX", "PYROPHAE", "TOTCHLC", "VIOLAX", "ZEA",
@@ -315,10 +315,10 @@ class TestCtd(TestCase):
                   "expected": ("PAR/Logarithmic", 1, "umol photons/m2/s", "Satlantic")}
         self.assertTupleEqual(ctd_parser.parse_sensor(sensor['sensor']), sensor['expected'])
 
-        sensor = {"sensor": "Oxygen raw, SBE 43 [V]", "expected": ("Oxygen raw", 1, "V", "SBE 43")}
+        sensor = {"sensor": "Oxygen raw, SBE 43 [V]", "expected": ("Oxygen", 1, "V", "SBE 43")}
         self.assertTupleEqual(ctd_parser.parse_sensor(sensor['sensor']), sensor['expected'])
 
-        sensor = {"sensor": "Oxygen raw, SBE 43, 2 [V]", "expected": ("Oxygen raw", 2, "V", "SBE 43")}
+        sensor = {"sensor": "Oxygen raw, SBE 43, 2 [V]", "expected": ("Oxygen", 2, "V", "SBE 43")}
         self.assertTupleEqual(ctd_parser.parse_sensor(sensor['sensor']), sensor['expected'])
 
         sensor = {"sensor": "Fluorescence, Seapoint Ultraviolet",

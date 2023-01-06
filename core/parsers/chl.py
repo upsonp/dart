@@ -3,12 +3,15 @@ from . import parser_utils
 from core import models
 import numpy as np
 
+CHL_REQUIRED_HEADERS = ['I.D.', 'CHL.', 'PHAE.']
+
 
 # CHL is done in pairs and we need I.D., CHL. and PHAE. columns
 def parse_dataframe(file_name, dataframe) -> [models.ChlSample]:
-    label_id = 'I.D.'
-    label_chl = 'CHL.'
-    label_phae = 'PHAE.'
+    label_id = CHL_REQUIRED_HEADERS[0]
+    label_chl = CHL_REQUIRED_HEADERS[1]
+    label_phae = CHL_REQUIRED_HEADERS[2]
+
     df = dataframe[[label_id, label_chl, label_phae]]
     number_of_rows = df.shape[0]
     samples = []
@@ -36,4 +39,4 @@ def parse_dataframe(file_name, dataframe) -> [models.ChlSample]:
 
 
 def load_data(mission_id, stream):
-    return parser_utils.load_data(mission_id, stream, models.ChlSample, parse_dataframe)
+    return parser_utils.load_data(mission_id, stream, models.ChlSample, parse_dataframe, CHL_REQUIRED_HEADERS)

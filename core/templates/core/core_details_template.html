@@ -50,9 +50,9 @@
           </button>
 
           <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{% url 'core-api:pd_salt-list' 'csv' %}?mission={{ object.id }}">Panda Salt Report</a></li>
-            <li><a class="dropdown-item" href="{% url 'core-api:pd_oxygen-list' 'csv' %}?mission={{ object.id }}">Panda Oxygen Report</a></li>
-            <li><a class="dropdown-item" href="{% url 'core-api:pd_chl-list' 'csv' %}?mission={{ object.id }}">Panda Chl Report</a></li>
+            <li><a class="dropdown-item" href="{% url 'core-api:pd_salt-list' 'csv' %}?mission_id={{ object.id }}">Panda Salt Report</a></li>
+            <li><a class="dropdown-item" href="{% url 'core-api:pd_oxygen-list' 'csv' %}?mission_id={{ object.id }}">Panda Oxygen Report</a></li>
+            <li><a class="dropdown-item" href="{% url 'core-api:pd_chl-list' 'csv' %}?mission_id={{ object.id }}">Panda Chl Report</a></li>
 
             <li><a class="dropdown-item" href="{% url 'core:event_summary_report' object.id %}">Elog Summary</a></li>
             <li><a class="dropdown-item" href="{% url 'core:profile_summary_report' object.id %}">Profile Summary</a></li>

@@ -70,6 +70,8 @@ def parse_sensor(sensor: str) -> [str, int, str, str]:
     units, sensor_a = _get_units(sensor)
     priority, sensor_b = _get_priority(sensor_a)
     sensor_type, remainder = _get_sensor_type(sensor_b)
+    if sensor_type.lower() == "oxygen raw":
+        sensor_type = "Oxygen"
 
     return sensor_type, priority, units, remainder
 
@@ -113,12 +115,12 @@ def parse_sensor_name(sensor: str) -> [models.SensorType, int, str]:
     # Sbeox0ML/L -> Sbeox (Sea-bird oxygen), 0 (primary sensor), ML/L
     # many sensors follow this format, the ones that don't are likely located, in greater detail, in
     # the ROS file configuration
-    details = re.match("([A-Z][a-z]*)(\d{0,1})([A-Z]*.*)", sensor).groups()
+    details = re.match("(\D\D*)(\d{0,1})([A-Z]*.*)", sensor).groups()
     if not details:
         raise Exception(f"Sensor '{sensor}' does not follow the expected naming convention")
 
     sensor_type = models.get_sensor_type(details[0])
-    priority = int(details[1] if len(details[1]) > 1 else 0) + 1  # priority 0 means primary sensor, 1 means secondary
+    priority = int(details[1] if len(details[1]) >= 1 else 0) + 1  # priority 0 means primary sensor, 1 means secondary
     units = details[2] if len(details) > 2 else None
 
     return [sensor_type, priority, units]
@@ -204,7 +206,8 @@ def process_bottles(file_name: str, event: models.Event, data_frame: pandas.Data
         if not hasattr(date, 'timezone'):
             date = pytz.timezone("UTC").localize(date)
 
-        errors += validations.validate_bottle_sample_range(file=file_name, event=event, bottle_id=bottle_id, line=line)
+        validation = validations.validate_bottle_sample_range(file=file_name, event=event, bottle_id=bottle_id, line=line)
+        errors += validation
 
         if models.Bottle.objects.filter(event=event, bottle_number=bottle_number).exists():
             b = models.Bottle.objects.get(event=event, bottle_number=bottle_number)
@@ -216,9 +219,11 @@ def process_bottles(file_name: str, event: models.Event, data_frame: pandas.Data
                 b_update['fields'] = b_update['fields'].union(updated_fields)
             continue
 
-        new_bottle = models.Bottle(event=event, pressure=pressure, bottle_number=bottle_number, date_time=date,
-                                   bottle_id=bottle_id)
-        b_create.append(new_bottle)
+        # only create a new bottle if the bottle id is in a valid range.
+        if len(validation) <= 0:
+            new_bottle = models.Bottle(event=event, pressure=pressure, bottle_number=bottle_number, date_time=date,
+                                       bottle_id=bottle_id)
+            b_create.append(new_bottle)
 
     models.Error.objects.bulk_create(errors)
     models.Bottle.objects.bulk_create(b_create)
@@ -240,15 +245,22 @@ def process_data(event: models.Event, data_frame: pandas.DataFrame, column_heade
 
         df = data_frame_avg[["Bottle", column_name]]
         for data in df.iterrows():
-            bottle = models.Bottle.objects.get(event=event, bottle_number=data[1]["Bottle"])
-            b_data = bottle.bottle_data.all()
-            if b_data.filter(sensor__column_name=sensor.column_name):
-                ctd_update = b_data.get(sensor=sensor)
-                if ctd_update.value != data[1][column_name]:
-                    ctd_update.value = data[1][column_name]
-                    data_column_update.append(ctd_update)
-            else:
-                data_column_create.append(models.CTDData(bottle=bottle, sensor=sensor, value=data[1][column_name]))
+            try:
+                bottle = models.Bottle.objects.get(event=event, bottle_number=data[1]["Bottle"])
+                b_data = bottle.bottle_data.all()
+                if b_data.filter(sensor__column_name=sensor.column_name):
+                    ctd_update = b_data.get(sensor=sensor)
+                    if ctd_update.value != data[1][column_name]:
+                        ctd_update.value = data[1][column_name]
+                        data_column_update.append(ctd_update)
+                else:
+                    data_column_create.append(models.CTDData(bottle=bottle, sensor=sensor, value=data[1][column_name]))
+            except models.Bottle.DoesNotExist as e:
+                """ The bottle doesn't exist. The reason is probably because when creating bottles in the
+                 process_bottles method the bottle failed it's ID validation. So the question becomes what do we do
+                 here? Do we log another error, which was probably logged during the process_bottles or assume the
+                 issue was already captured and explained to the users."""
+                pass
 
     models.CTDData.objects.bulk_create(data_column_create)
     models.CTDData.objects.bulk_update(data_column_update, fields=["value"])

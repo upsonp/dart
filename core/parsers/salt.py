@@ -5,15 +5,17 @@ import numbers
 
 from core import models
 
+SALT_REQUIRED_HEADERS = ["Sample ID", "Bottle Label", "DateTime", "Calculated Salinity", "Comments"]
+
 
 # Salts have lots of data, we only care about rows where a Bottle Label is present and is an int.
 # we need Bottle Label, DateTime, Calculated Salinity and Comments
 def parse_dataframe(file_name, dataframe) -> [models.SaltSample]:
-    label_sample_id = "Sample ID"
-    label_bottle_id = "Bottle Label"
-    label_datetime = "DateTime"
-    label_calculated_salinity = "Calculated Salinity"
-    label_comments = "Comments"
+    label_sample_id = SALT_REQUIRED_HEADERS[0]
+    label_bottle_id = SALT_REQUIRED_HEADERS[1]
+    label_datetime = SALT_REQUIRED_HEADERS[2]
+    label_calculated_salinity = SALT_REQUIRED_HEADERS[3]
+    label_comments = SALT_REQUIRED_HEADERS[4]
 
     df = dataframe[[label_bottle_id, label_sample_id, label_datetime, label_calculated_salinity, label_comments]]
     # remove columns that do not have a value in the label_id column
@@ -39,4 +41,4 @@ def parse_dataframe(file_name, dataframe) -> [models.SaltSample]:
 
 
 def load_data(mission_id, stream):
-    return parser_utils.load_data(mission_id, stream, models.SaltSample, parse_dataframe)
+    return parser_utils.load_data(mission_id, stream, models.SaltSample, parse_dataframe, SALT_REQUIRED_HEADERS)

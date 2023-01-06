@@ -1,6 +1,6 @@
 import re
 
-import numpy
+import numpy as np
 import django.utils.timezone
 
 from django.db import models
@@ -366,17 +366,23 @@ class Bottle(models.Model):
 
     pressure = models.FloatField(verbose_name="Pressure", default=0.0)
 
-    def get_sensor_data_by_name(self, sensor_name, sensor_type, priority=1):
-        return self.bottle_data.get(
-            sensor__name__iexact=sensor_name,
-            sensor__sensor_type=sensor_type,
-            sensor__priority=priority)
+    def get_ctd_data(self, sensor_type: SensorType, priority: int = 1, sensor_name: str = None, units: str = None):
+        try:
+            data = self.bottle_data.filter(sensor__sensor_details__sensor_type=sensor_type,
+                                           sensor__priority=priority)
 
-    def get_sensor_data_by_unit(self, unit, sensor_type, priority=1):
-        return self.bottle_data.get(
-            sensor__units__iexact=unit,
-            sensor__sensor_type=sensor_type,
-            sensor__priority=priority)
+            if sensor_name:
+                data = data.filter(sensor__column_name__istartswith=sensor_name)
+
+            if units:
+                data = data.filter(sensor__sensor_details__units=units)
+
+            if data.exists():
+                return data[0].value
+
+            return None
+        except CTDData.DoesNotExist as e:
+            return None
 
     class Meta:
         unique_together = ['event', 'bottle_number']
@@ -438,7 +444,7 @@ class OxygenSample(Sample):
         if self.winkler_2:
             winks.append(self.winkler_2)
 
-        return numpy.average(winks)
+        return np.average(winks)
 
 
 class SaltSample(Sample):
@@ -460,11 +466,11 @@ class ChlSample(Sample):
 
     @property
     def mean_chl(self):
-        return numpy.average([c.chl for c in self.bottle.chl_data.all()])
+        return np.average([c.chl for c in self.bottle.chl_data.all()])
 
     @property
     def mean_phae(self):
-        return numpy.average([c.phae for c in self.bottle.chl_data.all()])
+        return np.average([c.phae for c in self.bottle.chl_data.all()])
 
 
 class ChnSample(Sample):

@@ -70,7 +70,7 @@ def get_ctd_files(request):
         ctd.read_ctd(btl_file)
         btl_files.append(btl_file)
 
-        errors = models.Error.objects.filter(file=btl_file)
+        errors = models.Error.objects.filter(file_name=btl_file.file.name)
         if len(errors) > 0:
             return JsonResponse({'errors': [{"pk": e.pk, "line": e.line, "msg": e.message, "trace": e.stack_trace}
                                             for e in errors]})
@@ -135,7 +135,7 @@ def process_ctd(request, mission_id):
 
         post_ctd_validation(ctd_files)
 
-    errors = models.Error.objects.filter(file=ctd_file)
+    errors = models.Error.objects.filter(file_name=ctd_file.file.name)
     return JsonResponse({'updated': updated, "errors": [{"pk": e.pk, "line": e.line, "msg": e.message,
                                                          "trace": e.stack_trace} for e in errors]})
 

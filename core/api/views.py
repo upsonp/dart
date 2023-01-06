@@ -141,8 +141,6 @@ class BottleViewset(viewsets.ModelViewSet):
 
 class SampleViewset(viewsets.ModelViewSet):
 
-    model = None
-
     def get_model(self):
         return self.model
 
@@ -172,10 +170,12 @@ class SaltViewset(SampleViewset):
     serializer_class = serializers.SaltReport
 
 
-class PandaSaltReport(SaltViewset, PandasViewSet):
+class PandaSaltReport(SampleViewset, PandasViewSet):
+    model = models.SaltSample
+    serializer_class = serializers.SaltSampleReport
 
     def get_pandas_filename(self, request, format):
-        return f"{models.Mission.objects.get(pk=request.query_params['mission']).name}_Salt_Report"
+        return f"{models.Mission.objects.get(pk=request.query_params['mission_id']).name}_Salt_Report"
 
 
 class OxygenViewset(SampleViewset):
@@ -183,10 +183,12 @@ class OxygenViewset(SampleViewset):
     serializer_class = serializers.OxygenReport
 
 
-class PandaOxygenReport(OxygenViewset, PandasViewSet):
+class PandaOxygenReport(SampleViewset, PandasViewSet):
+    model = models.OxygenSample
+    serializer_class = serializers.OxygenSampleReport
 
     def get_pandas_filename(self, request, format):
-        return f"{models.Mission.objects.get(pk=request.query_params['mission']).name}_Oxygen_Report"
+        return f"{models.Mission.objects.get(pk=request.query_params['mission_id']).name}_Oxygen_Report"
 
 
 class ChlViewset(SampleViewset):
@@ -194,10 +196,12 @@ class ChlViewset(SampleViewset):
     serializer_class = serializers.ChlReport
 
 
-class PandaChlReport(ChlViewset, PandasViewSet):
+class PandaChlReport(SampleViewset, PandasViewSet):
+    model = models.ChlSample
+    serializer_class = serializers.ChlSampleReport
 
     def get_pandas_filename(self, request, format):
-        return f"{models.Mission.objects.get(pk=request.query_params['mission']).name}_Chl_Report"
+        return f"{models.Mission.objects.get(pk=request.query_params['mission_id']).name}_Chl_Report"
 
 
 class ChnViewset(SampleViewset):

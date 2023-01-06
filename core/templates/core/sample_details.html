@@ -341,7 +341,10 @@
                             this.samples[key] = response;
                             if (key === 'ctd') {
                                 this.samples[key] = this.samples[key][0];
+                            } else if(key === 'chn') {
+                                console.log("Chn")
                             }
+
                             this.loading[key] = false;
                             this.apply_filter(key);
                         }

@@ -2,6 +2,8 @@ from . import parser_utils
 
 from core import models
 
+HPLC_REQUIRED_HEADERS = {field.verbose_name: field.attname for field in models.HplcSample._meta.fields[3:]}.values()
+
 
 def parse_dataframe(file_name, dataframe) -> [models.HplcSample]:
     # I really hate doing things that require long explanations because it probably means I'm doing something wrong :(
@@ -34,4 +36,4 @@ def parse_dataframe(file_name, dataframe) -> [models.HplcSample]:
 
 
 def load_data(mission_id, stream):
-    return parser_utils.load_data(mission_id, stream, models.HplcSample, parse_dataframe)
+    return parser_utils.load_data(mission_id, stream, models.HplcSample, parse_dataframe, HPLC_REQUIRED_HEADERS)

@@ -3,6 +3,7 @@
     <tr>
         <th>Bottle ID</th>
         <th>Pressure</th>
+        <th>Sample</th>
         <th>Carbon(ug/l)</th>
         <th>Nitrogen(ug/l)</th>
         <th>Carbon/Nitrogen</th>
@@ -12,6 +13,7 @@
     <tr v-for="sample in filtered.chn">
         <td>${ sample.Sample }</td>
         <td>${ sample.Pressure }</td>
+        <td>${ sample.sample_order }</td>
         <td>${ sample.carbon }</td>
         <td>${ sample.nitrogen }</td>
         <td>${ sample.carbon_nitrogen }</td>

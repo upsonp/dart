@@ -1,3 +1,5 @@
+import numpy as np
+
 from core import models
 
 from datetime import datetime
@@ -85,13 +87,13 @@ def get_variable_data(bottle, column_name):
 
 
 def get_variable_type_data(bottle, sensor_type, priority=1, name=None, unit=None):
-    bd = models.CTDData.objects.filter(bottle=bottle, sensor__sensor_type=sensor_type, column__priority=priority)
+    bd = bottle.bottle_data.filter(sensor__sensor_details__sensor_type=sensor_type, sensor__priority=priority)
 
     if name:
-        bd = bd.filter(sensor__name__iexact=name)
+        bd = bd.filter(sensor__column_name__istartswith=name)
 
     if unit:
-        bd = bd.filter(sensor__units__iexact=unit)
+        bd = bd.filter(sensor__sensor_details__units__iexact=unit)
 
     return bd[0].value if bd else ""
 
@@ -101,8 +103,8 @@ def get_salinity(b):
     return salt_sample[0].calculated_salinity if salt_sample else ""
 
 
-def get_pressure(b):
-    return get_variable_data(b, "PrDM")
+def get_pressure(b: models.Bottle):
+    return b.pressure
 
 
 def get_mean_chl(b):
@@ -221,27 +223,30 @@ def print_profile_summary(mission_id, output_file_location="./"):
 
 def get_profile_summary(mission):
 
+    def get_chl_voltage(bottle: models.Bottle):
+        bd = bottle.bottle_data.filter(sensor__sensor_details__sensor_type=models.SensorType.fluorescence,
+                                       sensor__priority=1, sensor__column_name__iexact="FlSP")
+
+        return bd[0].value
+
     row_dic = {
         "Name": lambda b: b.event.mission.name,
         "Station": lambda b: b.event.station.name,
         "Event": lambda b: b.event.event_id,
         "Gear": lambda b: models.InstrumentType(b.event.instrument.instrument_type).label,
         "Sample": lambda b: b.bottle_id,
-        "Total_Of_Value": lambda b: "IDK",
         "Chl_a_Holm-Hansen_F": lambda b: get_mean_chl(b),
-        "Chl_Fluor_Voltage": lambda b: get_variable_type_data(bottle=b, sensor_type=models.SensorType.chl.value),
-        "conductivity_CTD": lambda b: get_variable_type_data(bottle=b, sensor_type=models.SensorType.conductivity.value,
-                                                             name='c'),
-        "O2_CTD_mLL": lambda b: get_variable_type_data(bottle=b, sensor_type=models.SensorType.oxygen, unit="v"),
+        "Chl_Fluor_Voltage": lambda b: get_chl_voltage(b),
+        "conductivity_CTD": lambda b: b.get_ctd_data(sensor_type=models.SensorType.conductivity, name='c'),
+        "O2_CTD_mLL": lambda b: b.get_ctd_data(sensor_type=models.SensorType.oxygen, unit="ML/L"),
         "O2_Winkler_Auto": lambda b: get_oxygen_average(b),
-        "PAR": lambda b: get_variable_type_data(bottle=b, sensor_type=models.SensorType.par.value),
-        "pH_CTD_nocal": lambda b: get_variable_type_data(bottle=b, sensor_type=models.SensorType.ph.value),
+        "PAR": lambda b: b.get_ctd_data(sensor_type=models.SensorType.par_logarithmic),
+        "pH_CTD_nocal": lambda b: b.get_ctd_data(sensor_type=models.SensorType.ph),
         "Phaeo_Holm-HansenF": lambda b: get_mean_phae(b),
         "Pressure": lambda b: get_pressure(b),
-        "Salinity_CTD": lambda b: get_variable_type_data(bottle=b, sensor_type=models.SensorType.salinity.value),
+        "Salinity_CTD": lambda b: b.get_ctd_data(sensor_type=models.SensorType.salinity),
         "Salinity_Sal_PSS": lambda b: get_salinity(b),
-        "TE90": lambda b: get_variable_type_data(bottle=b, sensor_type=models.SensorType.temperature.value, name='t'),
-        "TURW": lambda b: get_variable_type_data(bottle=b, sensor_type=models.SensorType.turw.value)
+        "TE90": lambda b: b.get_ctd_data(sensor_type=models.SensorType.temperature, name='t'),
     }
 
     bottles = models.Bottle.objects.filter(event__mission=mission).order_by("event__station__name")
@@ -275,6 +280,7 @@ def get_biosum_report(mission):
                                                                   models.InstrumentType.ctd.value).order_by("event_id")]
         return events.index(b.event.event_id) if b.event.event_id in events else -1
 
+
     row_dic = {
         "CTD": lambda b: get_ctd_index(b),
         "Event": lambda b: b.event.event_id,
@@ -289,19 +295,19 @@ def get_biosum_report(mission):
         "Lat_dec": lambda b: b.event.start_location[0],
         "Lon_dec": lambda b: b.event.start_location[1],
         "ID_TAG": lambda b: b.bottle_id,
-        "CTD_Pressure": lambda b: get_pressure(b),
+        "CTD_Pressure": lambda b: b.pressure,
         "MEAN_CHL": lambda b: get_mean_chl(b),
         "MEAN_PHAEO": lambda b: get_mean_phae(b),
         "o2_(ml/l)": lambda b: get_oxygen_average(b),
         "Salinity_Sal_PSS": lambda b: get_salinity(b),
-        "Salinity_CTD": lambda b: get_variable_data(b, 'Sal00'),
-        "O2_CTD_mLL": lambda b: get_variable_data(b, 'Sbeox0ML/L'),
-        "Chl_Fluor_Voltage": lambda b: get_variable_data(b, "FlECO-AFL"),
-        "conductivity_CTD": lambda b: get_variable_data(b, "C0S/m"),
-        "PAR": lambda b: get_variable_data(b, 'Par/log'),
-        "pH_CTD_nocal": lambda b: get_variable_data(b, 'Ph'),
-        "TE90": lambda b: get_variable_data(b, 'T090C'),
-        "TURW": lambda b: get_variable_data(b, 'CStarAt0')
+        "Salinity_CTD": lambda b: b.get_ctd_data(sensor_type=models.SensorType.salinity),
+        "O2_CTD_mLL": lambda b: b.get_ctd_data(sensor_type=models.SensorType.oxygen, units='ML/L'),
+        "Chl_Fluor_Voltage": lambda b: b.get_ctd_data(sensor_type=models.SensorType.fluorescence),
+        "conductivity_CTD": lambda b: b.get_ctd_data(sensor_type=models.SensorType.conductivity, units='S/m'),
+        "PAR": lambda b: b.get_ctd_data(sensor_type=models.SensorType.par_logarithmic),
+        "pH_CTD_nocal": lambda b: b.get_ctd_data(sensor_type=models.SensorType.ph),
+        "TE90": lambda b: b.get_ctd_data(sensor_type=models.SensorType.temperature),
+        "TURW": lambda b: b.get_ctd_data(sensor_type=models.SensorType.turbidity)
     }
 
     bottles = models.Bottle.objects.filter(event__mission=mission).order_by("event__event_id")

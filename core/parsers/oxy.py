@@ -2,11 +2,12 @@ from . import parser_utils
 
 from core import models
 
+OXY_REQUIRED_HEADERS = ['Sample', 'O2_Concentration(ml/l)']
 
 # Oxygen is done in pairs and we need Sample and O2_Concentration(ml/l) columns
 def parse_dataframe(file_name, dataframe) -> [models.ChnSample]:
-    label_id = 'Sample'
-    label_winkler = 'O2_Concentration(ml/l)'
+    label_id = OXY_REQUIRED_HEADERS[0]
+    label_winkler = OXY_REQUIRED_HEADERS[1]
     df = dataframe[[label_id, label_winkler]]
     number_of_rows = df.shape[0]
     samples = []
@@ -25,5 +26,5 @@ def parse_dataframe(file_name, dataframe) -> [models.ChnSample]:
 
 
 def load_data(mission_id, stream):
-    return parser_utils.load_data(mission_id, stream, models.OxygenSample, parse_dataframe)
+    return parser_utils.load_data(mission_id, stream, models.OxygenSample, parse_dataframe, OXY_REQUIRED_HEADERS)
 
