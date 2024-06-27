@@ -17,7 +17,7 @@ from django.utils.translation import gettext as _
 from render_block import render_block_to_string
 
 from core import forms as core_forms, models, validation
-from core.parsers import FilterLogParser, elog
+from core.parsers import FilterLogParser, elog, andes
 from core.parsers.FixStationParser import FixStationParser
 
 from dart.utils import load_svg
@@ -1123,18 +1123,29 @@ def import_elog_events(request, database, mission_id, **kwargs):
     mission = models.Mission.objects.using(database).get(pk=mission_id)
 
     if request.method == 'GET':
+        if 'andes_event' in request.GET:
+            logger = andes.logger_notifications.name
+            message = _("Processing Andes Report")
+        else:
+            logger = elog.logger_notifications.name
+            message = _("Processing Elog")
+
         attrs = {
             'alert_area_id': "div_id_event_alert",
-            'message': _("Processing Elog"),
-            'logger': elog.logger_notifications.name,
+            'logger': logger,
             'hx-post': request.path,
-            'hx-trigger': 'load'
+            'hx-trigger': 'load',
+            'message': message,
         }
         return HttpResponse(core_forms.websocket_post_request_alert(**attrs))
 
-    files = request.FILES.getlist('event')
 
-    elog.parse_files(mission, files)
+    if 'andes_event' in request.FILES:
+        file = request.FILES.get('andes_event')
+        andes.parse(mission, file.name, file)
+    else:
+        files = request.FILES.getlist('elog_event')
+        elog.parse_files(mission, files)
     validation.validate_mission(mission)
 
     # When a file is first loaded it triggers a 'selection changed' event for the forms "input" element.

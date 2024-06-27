@@ -56,6 +56,11 @@ def validate_event(event: core_models.Event) -> [core_models.ValidationError]:
             err = core_models.ValidationError(event=event, message=message, type=core_models.ErrorType.validation)
             validation_errors.append(err)
 
+    if event.start_location == [None, None]:
+        message = _("Event is missing an action with a valid location") + f' {event.event_id}'
+        err = core_models.ValidationError(event=event, message=message, type=core_models.ErrorType.validation)
+        validation_errors.append(err)
+
     # Validate event does not have duplicate action types
     mission = event.mission
     if event.start_date is None or event.end_date is None:
@@ -86,7 +91,8 @@ def validate_event(event: core_models.Event) -> [core_models.ValidationError]:
     if event.instrument.type == core_models.InstrumentType.ctd:
         validation_errors += validate_ctd_event(event)
     elif event.instrument.type == core_models.InstrumentType.net:
-        validation_errors += validate_net_event(event)
+        if 'multinet' not in event.instrument.name.lower():
+            validation_errors += validate_net_event(event)
 
     return validation_errors
 

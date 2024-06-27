@@ -86,6 +86,10 @@ class Mission(models.Model):
                                              blank=True, null=True)
 
     @property
+    def get_batch_name(self):
+        return f'{self.start_date.strftime("%Y%m")}{self.end_date.strftime("%m")}'
+
+    @property
     def get_biochem_table_name(self):
         if not self.biochem_table:
             self.biochem_table = f'bio_upload_{self.name}'
@@ -287,7 +291,7 @@ class Action(models.Model):
     longitude = models.DecimalField(verbose_name=_("Longitude"), blank=True, null=True, decimal_places=6, max_digits=9)
 
     # The file this action was loaded from. Events can span different files, but they can also be entered
-    # manually (comming soon) so this allows us to track an action back to the file it comes from, if it comes
+    # manually so this allows us to track an action back to the file it comes from, if it comes
     # from a file.
     file = models.CharField(verbose_name=_("File Name"), max_length=100, null=True, blank=True)
 
@@ -300,7 +304,7 @@ class Action(models.Model):
                                          help_text=_("if the action is an unknown type then leave a comment here "
                                                      "identifying what the 'other' type is"))
 
-    # the data collector would bet he person who fired the event on the ship. For BIO this would be the 'Author' field
+    # the data collector would be the person who fired the event on the ship. For BIO this would be the 'Author' field
     data_collector = models.CharField(verbose_name=_("Data Collector"), max_length=100, blank=True, null=True)
     sounding = models.FloatField(verbose_name=_("Sounding"), blank=True, null=True)
 
@@ -421,6 +425,12 @@ class MissionSampleType(models.Model):
         return label
 
 
+class BioChemUploadStatus(models.IntegerChoices):
+    upload = 1, "upload"
+    uploaded = 2, "uploaded"
+    delete = 3, "delete"
+
+
 # BioChemUpload is a table for tracking the last time a sensor or sample was uploaded to biochem. This way we can
 # track the data per-mission and let the user know if a sample has been uploaded, was modified and needs
 # to be re-uploaded, or hasn't been loaded yet.
@@ -430,11 +440,10 @@ class BioChemUpload(models.Model):
 
     upload_date = models.DateTimeField(verbose_name=_("Upload Date"), null=True, blank=True,
                                        help_text=_("The last time this sensor/sample was uploaded to biochem"))
-    modified_date = models.DateTimeField(verbose_name=_("Upload Date"), null=True, blank=True, auto_now=True,
-                                         help_text=_("The last time this sensor/sample was modified"))
+    modified_date = models.DateTimeField(verbose_name=_("Modified Date"), null=True, blank=True, auto_now=True,
+                                         help_text=_("The last time this sensor/sample was loaded"))
 
-    # Todo: add an action flag on this model that can be used to delete rows from BCS/BCD tables if
-    #       a sensor is removed from the list of sensors to upload to Biochem and it's already been uploaded.
+    status = models.IntegerField(verbose_name=_("Status"), null=True, blank=True, choices=BioChemUploadStatus.choices)
 
 
 # The Sample model tracks sample/sensor types that can or have been uploaded for a specific bottle. It can also
@@ -597,6 +606,9 @@ class AbstractError(models.Model):
 
     message = models.CharField(max_length=255, verbose_name=_("Message"))
     type = models.IntegerField(verbose_name=_("Error type"), default=0, choices=ErrorType.choices)
+
+    # The error code can be used to be more specific than an error type
+    code = models.IntegerField(verbose_name=_("Error code"), default=-1)
 
 
 # General errors we want to keep track of and notify the user about
