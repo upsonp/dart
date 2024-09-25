@@ -1,0 +1,937 @@
+[
+{
+    "model": "settingsdb.globalsampletypecategory",
+    "pk": 1,
+    "fields": {
+        "name": "Oxygen"
+    }
+},
+{
+    "model": "settingsdb.globalsampletypecategory",
+    "pk": 2,
+    "fields": {
+        "name": "Chlorophyll"
+    }
+},
+{
+    "model": "settingsdb.globalsampletypecategory",
+    "pk": 3,
+    "fields": {
+        "name": "Nutrients"
+    }
+},
+{
+    "model": "settingsdb.globalsampletypecategory",
+    "pk": 4,
+    "fields": {
+        "name": "HPLC"
+    }
+},
+{
+    "model": "settingsdb.globalsampletypecategory",
+    "pk": 5,
+    "fields": {
+        "name": "Salinity"
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 1,
+    "fields": {
+        "short_name": "oxy",
+        "long_name": "Oxygen",
+        "category": 1,
+        "priority": 1,
+        "datatype": 90000203,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 2,
+    "fields": {
+        "short_name": "salts",
+        "long_name": "Salinity",
+        "category": 5,
+        "priority": 1,
+        "datatype": 90000105,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 3,
+    "fields": {
+        "short_name": "chl",
+        "long_name": "Chlorophyll",
+        "category": 2,
+        "priority": 1,
+        "datatype": 90000243,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 4,
+    "fields": {
+        "short_name": "phae",
+        "long_name": "Phaeophytin",
+        "category": 2,
+        "priority": 1,
+        "datatype": 90000244,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 5,
+    "fields": {
+        "short_name": "chl_mean",
+        "long_name": "Mean Chlorophyll",
+        "category": null,
+        "priority": 1,
+        "datatype": 90000243,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 6,
+    "fields": {
+        "short_name": "phae_mean",
+        "long_name": "Mean Phaeophytin",
+        "category": null,
+        "priority": 1,
+        "datatype": 90000244,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 7,
+    "fields": {
+        "short_name": "carb",
+        "long_name": "Carbon",
+        "category": null,
+        "priority": 1,
+        "datatype": 90000192,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 8,
+    "fields": {
+        "short_name": "nitro",
+        "long_name": "Nitrogen",
+        "category": null,
+        "priority": 1,
+        "datatype": 90000193,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 9,
+    "fields": {
+        "short_name": "carb_l",
+        "long_name": "Carbon (Micrograms/Litre)",
+        "category": null,
+        "priority": 1,
+        "datatype": 90000192,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 10,
+    "fields": {
+        "short_name": "nitro_l",
+        "long_name": "Nitrogen (Micrograms/Litre)",
+        "category": null,
+        "priority": 1,
+        "datatype": 90000193,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 11,
+    "fields": {
+        "short_name": "nitrate",
+        "long_name": "Nitrate",
+        "category": 3,
+        "priority": 1,
+        "datatype": 90000199,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 12,
+    "fields": {
+        "short_name": "nitrite",
+        "long_name": "Nitrite",
+        "category": 3,
+        "priority": 1,
+        "datatype": 90000204,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 13,
+    "fields": {
+        "short_name": "phosphate",
+        "long_name": "Phosphate",
+        "category": 3,
+        "priority": 1,
+        "datatype": 90000198,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 14,
+    "fields": {
+        "short_name": "silicate",
+        "long_name": "Silicate",
+        "category": null,
+        "priority": 1,
+        "datatype": 90000200,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 15,
+    "fields": {
+        "short_name": "ammonium",
+        "long_name": "Ammonium",
+        "category": 3,
+        "priority": 1,
+        "datatype": 90000367,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 16,
+    "fields": {
+        "short_name": "acarot",
+        "long_name": "HPLC ACAROT",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000276,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 17,
+    "fields": {
+        "short_name": "allox",
+        "long_name": "HPLC ALLOX",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000277,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 18,
+    "fields": {
+        "short_name": "astax",
+        "long_name": "HPLC ASTAX",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000278,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 19,
+    "fields": {
+        "short_name": "bcarot",
+        "long_name": "HPLC BCAROT",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000279,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 20,
+    "fields": {
+        "short_name": "but19",
+        "long_name": "HPLC BUT19",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000280,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 21,
+    "fields": {
+        "short_name": "butlike",
+        "long_name": "HPLC BUTLIKE",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000281,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 22,
+    "fields": {
+        "short_name": "chla",
+        "long_name": "HPLC CHLA",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000282,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 23,
+    "fields": {
+        "short_name": "chlb",
+        "long_name": "HPLC CHLB",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000283,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 24,
+    "fields": {
+        "short_name": "chlc12",
+        "long_name": "HPLC CHLC12",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000284,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 25,
+    "fields": {
+        "short_name": "chlc3",
+        "long_name": "HPLC CHLC3",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000285,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 26,
+    "fields": {
+        "short_name": "chlidea",
+        "long_name": "HPLC CHLIDEA",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000286,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 27,
+    "fields": {
+        "short_name": "diadinox",
+        "long_name": "HPLC DIADINOX",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000287,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 28,
+    "fields": {
+        "short_name": "diatox",
+        "long_name": "HPLC DIATOX",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000288,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 29,
+    "fields": {
+        "short_name": "fucox",
+        "long_name": "HPLC FUCOX",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000289,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 30,
+    "fields": {
+        "short_name": "hex19",
+        "long_name": "HPLC HEX19",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000290,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 31,
+    "fields": {
+        "short_name": "hexlike",
+        "long_name": "HPLC HEXLIKE",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000291,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 32,
+    "fields": {
+        "short_name": "hexlike2",
+        "long_name": "HPLC HEXLIKE2",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000292,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 33,
+    "fields": {
+        "short_name": "perid",
+        "long_name": "HPLC PERID",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000293,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 34,
+    "fields": {
+        "short_name": "phaeo",
+        "long_name": "HPLC PHAEO",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000294,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 35,
+    "fields": {
+        "short_name": "prasinox",
+        "long_name": "HPLC PRASINOX",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000295,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 36,
+    "fields": {
+        "short_name": "pyrophae",
+        "long_name": "HPLC PYROPHAE",
+        "category": null,
+        "priority": 1,
+        "datatype": 90000296,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 37,
+    "fields": {
+        "short_name": "violax",
+        "long_name": "HPLC VIOLAX",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000297,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 38,
+    "fields": {
+        "short_name": "zea",
+        "long_name": "HPLC ZEA",
+        "category": 4,
+        "priority": 1,
+        "datatype": 90000298,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 39,
+    "fields": {
+        "short_name": "f12",
+        "long_name": "Freon 12",
+        "category": null,
+        "priority": 1,
+        "datatype": 90001136,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 40,
+    "fields": {
+        "short_name": "sf6",
+        "long_name": "Sulfur Hexafluoride",
+        "category": null,
+        "priority": 1,
+        "datatype": 90001135,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 41,
+    "fields": {
+        "short_name": "ph_25",
+        "long_name": "pH at 25°C",
+        "category": null,
+        "priority": 1,
+        "datatype": 90000330,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 42,
+    "fields": {
+        "short_name": "prDM",
+        "long_name": "Pressure, Digiquartz [db]",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 43,
+    "fields": {
+        "short_name": "t090C",
+        "long_name": "Temperature [ITS-90, deg C]",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 44,
+    "fields": {
+        "short_name": "c0S/m",
+        "long_name": "Conductivity [S/m]",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 45,
+    "fields": {
+        "short_name": "t190C",
+        "long_name": "Temperature [ITS-90, deg C]",
+        "category": null,
+        "priority": 2,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 46,
+    "fields": {
+        "short_name": "c1S/m",
+        "long_name": "Conductivity [S/m]",
+        "category": null,
+        "priority": 2,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 47,
+    "fields": {
+        "short_name": "altM",
+        "long_name": "Altimeter [m]",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 48,
+    "fields": {
+        "short_name": "par/log",
+        "long_name": "PAR/Logarithmic, Satlantic [umol photons/m2/s]",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 49,
+    "fields": {
+        "short_name": "sbeox0V",
+        "long_name": "Oxygen raw, SBE 43 [V]",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 50,
+    "fields": {
+        "short_name": "sbeox1V",
+        "long_name": "Oxygen raw, SBE 43 [V]",
+        "category": null,
+        "priority": 2,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 51,
+    "fields": {
+        "short_name": "flSPuv0",
+        "long_name": "Fluorescence, Seapoint Ultraviolet",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 52,
+    "fields": {
+        "short_name": "flSP",
+        "long_name": "Fluorescence, Seapoint",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 53,
+    "fields": {
+        "short_name": "ph",
+        "long_name": "pH",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 54,
+    "fields": {
+        "short_name": "turbWETbb0",
+        "long_name": "Turbidity, WET Labs ECO BB [m^-1/sr]",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 55,
+    "fields": {
+        "short_name": "sbeox0ml/l",
+        "long_name": "ml/l",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 56,
+    "fields": {
+        "short_name": "sbeox1ml/l",
+        "long_name": "ml/l",
+        "category": null,
+        "priority": 2,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 57,
+    "fields": {
+        "short_name": "sal00",
+        "long_name": null,
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 58,
+    "fields": {
+        "short_name": "sal11",
+        "long_name": null,
+        "category": null,
+        "priority": 2,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 59,
+    "fields": {
+        "short_name": "potemp090c",
+        "long_name": "90c",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 60,
+    "fields": {
+        "short_name": "potemp190c",
+        "long_name": "90c",
+        "category": null,
+        "priority": 2,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 61,
+    "fields": {
+        "short_name": "sigma-é00",
+        "long_name": null,
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 62,
+    "fields": {
+        "short_name": "sigma-é11",
+        "long_name": null,
+        "category": null,
+        "priority": 2,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 63,
+    "fields": {
+        "short_name": "flECO-AFL",
+        "long_name": "Fluorescence, WET Labs ECO-AFL/FL [mg/m^3]",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 64,
+    "fields": {
+        "short_name": "CStarAt0",
+        "long_name": "Beam Attenuation, WET Labs C-Star [1/m]",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 65,
+    "fields": {
+        "short_name": "wetCDOM",
+        "long_name": "Fluorescence, WET Labs CDOM [mg/m^3]",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 66,
+    "fields": {
+        "short_name": "par",
+        "long_name": "PAR/Irradiance, Biospherical/Licor",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 69,
+    "fields": {
+        "short_name": "spar",
+        "long_name": "SPAR/Surface Irradiance",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 70,
+    "fields": {
+        "short_name": "CStarTr0",
+        "long_name": "Beam Transmission, WET Labs C-Star [%]",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 71,
+    "fields": {
+        "short_name": "t068C",
+        "long_name": "Temperature [IPTS-68, deg C]",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 72,
+    "fields": {
+        "short_name": "t168C",
+        "long_name": "Temperature [IPTS-68, deg C]",
+        "category": null,
+        "priority": 2,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 73,
+    "fields": {
+        "short_name": "potemp068c",
+        "long_name": "68c",
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 74,
+    "fields": {
+        "short_name": "potemp168c",
+        "long_name": "68c",
+        "category": null,
+        "priority": 2,
+        "datatype": null,
+        "is_sensor": true
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 75,
+    "fields": {
+        "short_name": "CFC-12",
+        "long_name": null,
+        "category": null,
+        "priority": 1,
+        "datatype": 90001136,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 76,
+    "fields": {
+        "short_name": "nitrate_dl",
+        "long_name": "Nitrate with Detection Limit",
+        "category": null,
+        "priority": 1,
+        "datatype": 90000199,
+        "is_sensor": false
+    }
+},
+{
+    "model": "settingsdb.globalsampletype",
+    "pk": 77,
+    "fields": {
+        "short_name": "aresturb",
+        "long_name": null,
+        "category": null,
+        "priority": 1,
+        "datatype": null,
+        "is_sensor": true
+    }
+}
+]
