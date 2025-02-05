@@ -15,6 +15,8 @@ class LocalSetting(models.Model):
 class GlobalSampleTypeCategory(models.Model):
     name = models.CharField(verbose_name="Sample Type Category", max_length=50, unique=True)
 
+    def __str__(self):
+        return self.name
 
 # Sample types help us track sensors and samples that have been previously loaded for any mission, when we see a
 # sensor or sample with the same short name in the future we'll know what biochem data types to use as well as what
@@ -178,6 +180,23 @@ class GlobalStation(models.Model):
     def __str__(self):
         return self.name
 
+
+class GlobalStationPlan(models.Model):
+    station = models.ForeignKey(GlobalStation, verbose_name=_("Station Plan"), on_delete=models.CASCADE,
+                                related_name='plans')
+    depth = models.IntegerField(verbose_name=_("Pressure"), help_text=_("Nominal pressure data is collected for"))
+
+
+class GlobalStationAttribute(models.Model):
+    plan = models.ForeignKey(GlobalStationPlan, verbose_name=_("Station Plan"), on_delete=models.CASCADE,
+                             related_name='attributes')
+    attribute = models.ForeignKey(GlobalSampleTypeCategory, verbose_name=_("Sample Type"), on_delete=models.CASCADE,
+                             related_name='attributes')
+    is_collected = models.BooleanField(verbose_name=_("Collected"), default=False,
+                                       help_text=_("Is this collected at the nominal pressure?"))
+
+    def __str__(self):
+        return self.attribute.name
 
 class GlobalGeographicRegion(models.Model):
     name = models.CharField(verbose_name=_("Geographic Region Name"), max_length=100, unique=True)
