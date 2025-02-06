@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import views, views_global_station_plan
 
 app_name = 'settingsdb'
 
@@ -12,3 +12,4 @@ urlpatterns = [
     path('<str:database>/migrate/', views.migrate_database, name="migrate_database"),
     path('<int:station_id>/report/fixstation/', views.fixstation, name="fixstation"),
 ]
+urlpatterns.extend(views_global_station_plan.station_plan_urls)

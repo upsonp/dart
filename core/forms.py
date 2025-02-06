@@ -71,8 +71,8 @@ class CardForm(forms.Form):
     def get_card_body_id(self):
         return f'div_id_card_body_{self.card_name}'
 
-    def get_card_body(self) -> Div:
-        return Div(css_class='card-body', id=self.get_card_body_id())
+    def get_card_body(self, **kwargs) -> Div:
+        return Div(css_class='card-body', id=self.get_card_body_id(), **kwargs)
 
     def get_card_id(self):
         return f'div_id_card_{self.card_name}'

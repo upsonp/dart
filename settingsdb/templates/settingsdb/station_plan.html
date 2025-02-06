@@ -11,14 +11,6 @@
     </li>
 {% endblock %}
 
-{% block report %}
-  <ul class="dropdown-menu" id="ul_id_fixstation_reports">
-      {% for key,report in reports.items %}
-          <li><a class="dropdown-item" href="{{ report }}">{{ key }}</a></li>
-      {% endfor %}
-  </ul>
-{% endblock %}
-
 {% block title %}
     {{ block.super }}
     {% if new_url %}
@@ -28,12 +20,10 @@
 
 {% block content %}
 <div hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-    <form id="form_id_mission_directory" class="form-control">
-    {% if dir_select_form %}
-        {% crispy dir_select_form %}
+    <form id="form_id_station_plan">
+    {% if station_form %}
+        {% crispy station_form %}
     {% endif %}
     </form>
-
-    {% include 'settingsdb/partials/mission_table.html' %}
 </div>
 {% endblock %}
